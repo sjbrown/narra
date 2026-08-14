@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grid Avatar</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    .container {
+      padding: 20px;
+      width: 100%;
+      max-width: 900px;
+    }
+    
+    .controls {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+    
+    #resetBtn {
+      padding: 8px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    #resetBtn:hover {
+      background: #764ba2;
+    }
+    
+    #resetBtn:active {
+      transform: scale(0.98);
+    }
+    
+    .grid-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    
+    .grid-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    
+    #grid {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      display: block;
+      touch-action: none;
+    }
+    
+    .grid-square {
+      fill: white;
+      stroke: #ddd;
+      stroke-width: 1;
+    }
+    
+    .grid-square:hover {
+      fill: #f5f5f5;
+    }
+    
+    .entity {
+      position: absolute;
+      cursor: grab;
+      top: 0;
+      left: 0;
+    }
+    
+    .entity-direction-group {
+      transform-origin: 0 0;
+    }
+    
+    .tabs-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #eee;
+    }
+    
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      color: #666;
+      transition: all 0.2s;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+    
+    .tab-btn:hover {
+      background: #f9f9f9;
+      color: #333;
+    }
+    
+    .tab-btn.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+    
+    .tab-content {
+      display: none;
+      padding: 20px;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .json-editor {
+      width: 100%;
+      height: 250px;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      font-family: "Monaco", "Courier New", monospace;
+      font-size: 13px;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+    
+    .json-editor:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    @media (max-width: 600px) {
+      .json-editor {
+        height: 200px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls">
+      <button id="resetBtn">Reset</button>
+    </div>
+    
+    <div class="grid-section">
+      <div class="grid-wrapper">
+        <svg id="grid" width="800" height="560" viewBox="0 0 800 560"></svg>
+        
+        <!-- Avatar SVG entity -->
+        <svg class="entity avatar-entity" width="80" height="80" viewBox="-40 -40 80 80">
+          <g class="entity-direction-group">
+            <circle class="entity-circle" r="14" fill="#FFD700" stroke="#FFA500" stroke-width="2"></circle>
+            <circle class="entity-indicator" r="4.67" fill="#FFA500" cy="8.33"></circle>
+          </g>
+        </svg>
+        
+        <!-- Enemy SVG entity -->
+        <svg class="entity enemy-entity" width="80" height="80" viewBox="-40 -40 80 80">
+          <g class="entity-direction-group">
+            <circle class="entity-circle" r="14" fill="#FF6B6B" stroke="#CC0000" stroke-width="2"></circle>
+            <circle class="entity-indicator" r="4.67" fill="#CC0000" cy="8.33"></circle>
+          </g>
+        </svg>
+      </div>
+    </div>
+    
+    <div class="tabs-container">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="world">World</button>
+        <button class="tab-btn" data-tab="avatar">Avatar</button>
+        <button class="tab-btn" data-tab="enemy">Enemy</button>
+      </div>
+      
+      <div id="world" class="tab-content active">
+        <textarea id="world-json" class="json-editor"></textarea>
+      </div>
+      <div id="avatar" class="tab-content">
+        <textarea id="avatar-json" class="json-editor"></textarea>
+      </div>
+      <div id="enemy" class="tab-content">
+        <textarea id="enemy-json" class="json-editor"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const gridContainer = document.getElementById("grid");
+    
+    let GRID_WIDTH = 10;
+    let GRID_HEIGHT = 8;
+    let CELL_SIZE = 40;
+    
+    let config = {
+      world: { width: 10, height: 8, cellSize: 40 },
+      avatar: { speed: 6, color: "#FFD700", strokeColor: "#FFA500", radius: 0.35 },
+      enemy: { speed: 0.4, color: "#FF6B6B", strokeColor: "#CC0000", radius: 0.35, startX: 1, startY: 1 }
+    };
+    
+    let avatarSpeed = config.avatar.speed;
+    let enemySpeed = config.enemy.speed;
+    let lastAvatarMoveTime = 0;
+    let lastEnemyMoveTime = 0;
+    
+    function drawGrid() {
+      gridContainer.querySelectorAll(".grid-square").forEach(sq => sq.remove());
+      for (let row = 0; row < GRID_HEIGHT; row++) {
+        for (let col = 0; col < GRID_WIDTH; col++) {
+          const rect = document.createElementNS(SVG_NS, "rect");
+          rect.setAttribute("class", "grid-square");
+          rect.setAttribute("x", col * CELL_SIZE);
+          rect.setAttribute("y", row * CELL_SIZE);
+          rect.setAttribute("width", CELL_SIZE);
+          rect.setAttribute("height", CELL_SIZE);
+          gridContainer.appendChild(rect);
+        }
+      }
+      const newWidth = GRID_WIDTH * CELL_SIZE;
+      const newHeight = GRID_HEIGHT * CELL_SIZE;
+      gridContainer.setAttribute("viewBox", `0 0 ${newWidth} ${newHeight}`);
+      gridContainer.setAttribute("width", newWidth);
+      gridContainer.setAttribute("height", newHeight);
+    }
+    
+    drawGrid();
+    
+    let playerGridX = Math.floor(GRID_WIDTH / 2);
+    let playerGridY = Math.floor(GRID_HEIGHT / 2);
+    let playerVisualX = playerGridX;
+    let playerVisualY = playerGridY;
+    let targetGridX = null;
+    let targetGridY = null;
+    let playerDirection = "S";
+    
+    let enemyGridX = 1;
+    let enemyGridY = 1;
+    let enemyVisualX = 1;
+    let enemyVisualY = 1;
+    let enemyDirection = "S";
+    
+    const avatarEntity = document.querySelector(".avatar-entity");
+    const enemyEntity = document.querySelector(".enemy-entity");
+    
+    const ENTITY_HALF_SIZE = 40; // half of the entity svg's 80x80 box
+    
+    function updateAvatarPosition() {
+      const centerX = playerVisualX * CELL_SIZE + CELL_SIZE / 2;
+      const centerY = playerVisualY * CELL_SIZE + CELL_SIZE / 2;
+      avatarEntity.style.left = (centerX - ENTITY_HALF_SIZE) + "px";
+      avatarEntity.style.top = (centerY - ENTITY_HALF_SIZE) + "px";
+      const dirGroup = avatarEntity.querySelector(".entity-direction-group");
+      dirGroup.setAttribute("transform", `rotate(${getRotation(playerDirection)})`);
+    }
+    
+    function updateEnemyPosition() {
+      const centerX = enemyVisualX * CELL_SIZE + CELL_SIZE / 2;
+      const centerY = enemyVisualY * CELL_SIZE + CELL_SIZE / 2;
+      enemyEntity.style.left = (centerX - ENTITY_HALF_SIZE) + "px";
+      enemyEntity.style.top = (centerY - ENTITY_HALF_SIZE) + "px";
+      const dirGroup = enemyEntity.querySelector(".entity-direction-group");
+      dirGroup.setAttribute("transform", `rotate(${getRotation(enemyDirection)})`);
+    }
+    
+    function getRotation(direction) {
+      // Indicator's unrotated position (cy positive) points South,
+      // matching the default facing direction.
+      return { S: 0, W: 90, N: 180, E: 270 }[direction] || 0;
+    }
+    
+    function getGridCoordFromEvent(e) {
+      const rect = gridContainer.getBoundingClientRect();
+      const scaleX = gridContainer.clientWidth / gridContainer.viewBox.baseVal.width;
+      const scaleY = gridContainer.clientHeight / gridContainer.viewBox.baseVal.height;
+      const clientX = e.clientX || e.touches[0].clientX;
+      const clientY = e.clientY || e.touches[0].clientY;
+      const x = (clientX - rect.left) / scaleX;
+      const y = (clientY - rect.top) / scaleY;
+      return { gridX: Math.floor(x / CELL_SIZE), gridY: Math.floor(y / CELL_SIZE) };
+    }
+    
+    function moveTowardTarget(fromX, fromY, toX, toY) {
+      let newX = fromX, newY = fromY, direction = "S";
+      const dx = toX - fromX, dy = toY - fromY;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        newX += dx > 0 ? 1 : -1;
+        direction = dx > 0 ? "E" : "W";
+      } else if (Math.abs(dy) > Math.abs(dx)) {
+        newY += dy > 0 ? 1 : -1;
+        direction = dy > 0 ? "S" : "N";
+      } else if (dx !== 0) {
+        newX += dx > 0 ? 1 : -1;
+        direction = dx > 0 ? "E" : "W";
+      }
+      return { x: newX, y: newY, direction };
+    }
+    
+    function handleGridMove(e) {
+      const { gridX, gridY } = getGridCoordFromEvent(e);
+      targetGridX = Math.max(0, Math.min(GRID_WIDTH - 1, gridX));
+      targetGridY = Math.max(0, Math.min(GRID_HEIGHT - 1, gridY));
+    }
+    
+    function stopMovement() {
+      targetGridX = null;
+      targetGridY = null;
+    }
+    
+    function animationLoop(currentTime) {
+      const avatarIntervalMs = 1000 / avatarSpeed;
+      const enemyIntervalMs = 1000 / enemySpeed;
+      const interpolationAlpha = 0.15;
+      
+      if (currentTime - lastAvatarMoveTime >= avatarIntervalMs) {
+        if (targetGridX !== null && targetGridY !== null) {
+          if (playerGridX !== targetGridX || playerGridY !== targetGridY) {
+            const newPos = moveTowardTarget(playerGridX, playerGridY, targetGridX, targetGridY);
+            playerGridX = newPos.x;
+            playerGridY = newPos.y;
+            playerDirection = newPos.direction;
+          }
+        }
+        lastAvatarMoveTime = currentTime;
+      }
+      
+      if (currentTime - lastEnemyMoveTime >= enemyIntervalMs) {
+        const newPos = moveTowardTarget(enemyGridX, enemyGridY, playerGridX, playerGridY);
+        enemyDirection = newPos.direction;
+        
+        // Only move if not blocked by player
+        if (newPos.x !== playerGridX || newPos.y !== playerGridY) {
+          enemyGridX = newPos.x;
+          enemyGridY = newPos.y;
+        }
+        
+        lastEnemyMoveTime = currentTime;
+      }
+      
+      playerVisualX += (playerGridX - playerVisualX) * interpolationAlpha;
+      playerVisualY += (playerGridY - playerVisualY) * interpolationAlpha;
+      enemyVisualX += (enemyGridX - enemyVisualX) * interpolationAlpha;
+      enemyVisualY += (enemyGridY - enemyVisualY) * interpolationAlpha;
+      
+      updateAvatarPosition();
+      updateEnemyPosition();
+      requestAnimationFrame(animationLoop);
+    }
+    
+    requestAnimationFrame(animationLoop);
+    
+    let isMouseDown = false;
+    gridContainer.addEventListener("mousedown", (e) => { isMouseDown = true; handleGridMove(e); });
+    gridContainer.addEventListener("mousemove", (e) => { if (isMouseDown) handleGridMove(e); });
+    gridContainer.addEventListener("mouseup", () => { isMouseDown = false; stopMovement(); });
+    gridContainer.addEventListener("mouseleave", () => { isMouseDown = false; stopMovement(); });
+    gridContainer.addEventListener("touchstart", (e) => { e.preventDefault(); handleGridMove(e); });
+    gridContainer.addEventListener("touchmove", (e) => { e.preventDefault(); handleGridMove(e); });
+    gridContainer.addEventListener("touchend", (e) => { e.preventDefault(); stopMovement(); });
+    
+    function updateJsonEditors() {
+      document.getElementById("world-json").value = JSON.stringify(config.world, null, 2);
+      document.getElementById("avatar-json").value = JSON.stringify(config.avatar, null, 2);
+      document.getElementById("enemy-json").value = JSON.stringify(config.enemy, null, 2);
+    }
+    
+    function applyConfig() {
+      try {
+        config.world = JSON.parse(document.getElementById("world-json").value);
+        config.avatar = JSON.parse(document.getElementById("avatar-json").value);
+        config.enemy = JSON.parse(document.getElementById("enemy-json").value);
+        
+        GRID_WIDTH = config.world.width;
+        GRID_HEIGHT = config.world.height;
+        CELL_SIZE = config.world.cellSize;
+        avatarSpeed = config.avatar.speed;
+        enemySpeed = config.enemy.speed;
+        
+        playerGridX = Math.max(0, Math.min(playerGridX, GRID_WIDTH - 1));
+        playerGridY = Math.max(0, Math.min(playerGridY, GRID_HEIGHT - 1));
+        playerVisualX = playerGridX;
+        playerVisualY = playerGridY;
+        playerDirection = "S";
+        enemyGridX = Math.max(0, Math.min(enemyGridX, GRID_WIDTH - 1));
+        enemyGridY = Math.max(0, Math.min(enemyGridY, GRID_HEIGHT - 1));
+        enemyVisualX = enemyGridX;
+        enemyVisualY = enemyGridY;
+        enemyDirection = "S";
+        
+        drawGrid();
+        updateAvatarPosition();
+        updateEnemyPosition();
+      } catch (e) {
+        alert("Invalid JSON: " + e.message);
+      }
+    }
+    
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+    
+    ["world", "avatar", "enemy"].forEach(tab => {
+      const textarea = document.getElementById(`${tab}-json`);
+      textarea.addEventListener("blur", applyConfig);
+      textarea.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "Enter") applyConfig();
+      });
+    });
+    
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      playerGridX = Math.floor(GRID_WIDTH / 2);
+      playerGridY = Math.floor(GRID_HEIGHT / 2);
+      playerVisualX = playerGridX;
+      playerVisualY = playerGridY;
+      playerDirection = "S";
+      enemyGridX = config.enemy.startX;
+      enemyGridY = config.enemy.startY;
+      enemyVisualX = enemyGridX;
+      enemyVisualY = enemyGridY;
+      enemyDirection = "S";
+      targetGridX = null;
+      targetGridY = null;
+      updateAvatarPosition();
+      updateEnemyPosition();
+    });
+    
+    updateJsonEditors();
+    updateAvatarPosition();
+    updateEnemyPosition();
+  </script>
+</body>
+</html>

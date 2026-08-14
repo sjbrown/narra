@@ -1,0 +1,2196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>World Crumpler</title>
+<style>
+  :root{
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel-2: #1b1f26;
+    --line: #262b33;
+    --ink: #d9dde3;
+    --ink-dim: #7c8494;
+    --accent: #5ee6c4;
+    --red: #e0524a;
+    --green: #4bbf7a;
+    --blue: #4a8fe0;
+    --black: #0a0a0c;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); min-height:100vh;
+  }
+  .wrap{
+    max-width:920px; margin:0 auto; padding:36px 24px 60px;
+  }
+  header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:6px; flex-wrap:wrap; gap:8px;
+  }
+  h1{
+    font-family:var(--mono); font-size:15px; font-weight:600;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--ink);
+    margin:0;
+  }
+  h1 span{color:var(--accent);}
+  .layout{
+    display:grid; grid-template-columns: 1fr 240px; gap:28px; margin-top:28px;
+  }
+  @media (max-width:760px){ .layout{grid-template-columns:1fr;} }
+
+  .board{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+  }
+  .grid{
+    display:grid;
+    gap:4px;
+  }
+  .cell{
+    background:var(--black);
+    border:1px solid rgba(255,255,255,0.05);
+    border-radius:3px;
+    cursor:pointer;
+    padding:0;
+    transition: background-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+  }
+  .cell:hover{
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+  }
+  .cell:active{ transform: scale(0.93); }
+  .cell.red{ background:var(--red); }
+  .cell.green{ background:var(--green); }
+  .cell.blue{ background:var(--blue); }
+  .cell.settling{ animation: pop 260ms ease; }
+  .cell.candidate{
+    outline: 2px solid #f5c542;
+    outline-offset: -2px;
+  }
+  @keyframes pop{
+    0%{ transform:scale(0.55); }
+    60%{ transform:scale(1.08); }
+    100%{ transform:scale(1); }
+  }
+
+  .side{ display:flex; flex-direction:column; gap:16px; }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+  }
+  .card h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--ink-dim); margin:0 0 12px;
+    font-weight:600;
+  }
+  label{
+    display:block; font-family:var(--mono); font-size:11px;
+    color:var(--ink-dim); margin-bottom:6px;
+  }
+  input[type=text]{
+    width:100%; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--ink); font-family:var(--mono); font-size:13px;
+    padding:9px 10px; border-radius:6px; outline:none;
+  }
+  input[type=text]:focus{ border-color: var(--accent); }
+  input[type=number]{
+    width:100%; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--ink); font-family:var(--mono); font-size:13px;
+    padding:9px 10px; border-radius:6px; outline:none;
+  }
+  input[type=number]:focus{ border-color: var(--accent); }
+  .dim-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .dim-row > div{ flex:1; }
+  button{
+    width:100%; font-family:var(--mono); font-size:12px; letter-spacing:0.04em;
+    text-transform:uppercase; font-weight:600; padding:11px 10px;
+    border-radius:6px; border:1px solid var(--line); cursor:pointer;
+    background:var(--panel-2); color:var(--ink);
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  button:hover{ border-color: var(--accent); }
+  button:disabled{ opacity:0.5; cursor:not-allowed; }
+  #step{
+    border-color: #f5c542; color:#f5c542;
+  }
+  #step:hover{ border-color:#f5c542; filter:brightness(1.15); }
+  #complete{
+    background: var(--accent); color:#08110e; border-color:var(--accent);
+    margin-top:10px;
+  }
+  #complete:hover{ filter:brightness(1.06); }
+  #reset{ margin-top:8px; }
+  #export, #import, #share{ margin-top:0; }
+  #import, #share{ margin-top:8px; }
+
+  .supply-row{ display:flex; gap:6px; margin-bottom:16px; }
+  .supply-btn{ width:auto; flex:1; padding:8px 4px; font-size:11px; }
+  .supply-btn.active{ background:var(--accent); color:#08110e; border-color:var(--accent); }
+
+  .symmetry-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .sym-btn{ width:auto; padding:8px 10px; font-size:11px; }
+  .sym-btn.active{ background:var(--accent); color:#08110e; border-color:var(--accent); }
+
+  .preset-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .preset-btn{ width:auto; flex:1; min-width:100px; padding:9px 10px; font-size:11px; }
+
+  .weights{ display:flex; flex-direction:column; gap:14px; margin-bottom:14px; }
+  .wrow-slider{ display:flex; flex-direction:column; gap:6px; }
+  .wrow-top{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:var(--mono); font-size:12px; gap:8px;
+  }
+  .swatch{
+    width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:8px;
+    flex-shrink:0;
+  }
+  .wname{ display:flex; align-items:center; color:var(--ink-dim); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wval{ color:var(--ink); font-weight:600; }
+  .wsupply{ color:var(--ink-dim); font-size:10px; white-space:nowrap; }
+  .wremove{
+    width:auto; padding:2px 7px; font-size:11px; border-radius:4px;
+    color:var(--ink-dim);
+  }
+  .wremove:hover{ color:var(--red); border-color:var(--red); }
+  input[type=range].wslider{
+    width:100%; height:16px; cursor:pointer; background:transparent;
+  }
+
+  .legend{
+    font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+    line-height:1.7; margin-top:14px; padding-top:14px;
+    border-top:1px solid var(--line);
+  }
+  .status{
+    font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+    min-height:16px; margin-top:12px;
+  }
+
+  .rulebuilder{ margin-top:28px; display:flex; flex-direction:column; gap:18px; }
+  .color-panel{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:16px;
+  }
+  .color-panel h3{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--ink); margin:0 0 12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .color-panel h3 .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .rb-rows{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+  .rb-row{
+    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+    background:var(--panel-2); border:1px solid var(--line);
+    border-radius:8px; padding:10px;
+  }
+  .rb-empty{
+    font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+    padding:4px 0 12px;
+  }
+  .moore{
+    display:grid; grid-template-columns:repeat(3, 26px); grid-template-rows:repeat(3, 26px);
+    gap:3px; flex-shrink:0;
+  }
+  .moore-cell{
+    width:26px; height:26px; padding:0; margin:0;
+    border-radius:4px; border:1px solid var(--line);
+    font-family:var(--mono); font-size:10px; font-weight:600;
+    text-transform:none; letter-spacing:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel); color:var(--ink-dim); cursor:pointer;
+  }
+  .moore-cell:hover{ border-color:var(--accent); }
+  .moore-cell.center{
+    cursor:default; background:var(--accent); color:#08110e;
+    border-color:var(--accent); font-weight:700;
+  }
+  .moore-cell.wild{ color:var(--ink-dim); }
+  .moore-cell.marker{
+    background:#3a2f12; border-color:#f5c542; color:#f5c542;
+    box-shadow: inset 0 0 0 2px #f5c542;
+  }
+  .moore-cell.red{ background:rgba(224,82,74,0.22); border-color:var(--red); color:var(--red); }
+  .moore-cell.green{ background:rgba(75,191,122,0.22); border-color:var(--green); color:var(--green); }
+  .moore-cell.blue{ background:rgba(74,143,224,0.22); border-color:var(--blue); color:var(--blue); }
+  .moore-cell.dyncolor{ background:var(--panel); font-size:15px; }
+  .moore-cell.exact{ box-shadow: inset 0 0 0 2px currentColor; }
+  .moore-cell.center.red{ background:var(--red); border-color:var(--red); color:#1a0806; }
+  .moore-cell.center.green{ background:var(--green); border-color:var(--green); color:#06170c; }
+  .moore-cell.center.blue{ background:var(--blue); border-color:var(--blue); color:#06111c; }
+  .moore-cell.center.target{ background:var(--accent); border-color:var(--accent); color:#08110e; }
+  .rb-warn{ color:#f5c542; font-size:10px; }
+  .rb-intro{
+    font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+    line-height:1.6; margin-bottom:16px; max-width:800px;
+  }
+  .rb-meta{
+    display:flex; flex-direction:column; gap:6px;
+    font-family:var(--mono); font-size:11px; flex:1; min-width:220px;
+  }
+  .rb-key{ color:var(--ink-dim); font-size:10px; word-break:break-all; }
+  .rb-delete{
+    width:auto; align-self:flex-start; padding:5px 10px;
+    font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--red); border-radius:5px;
+  }
+  .rb-add{ width:auto; padding:8px 14px; font-size:11px; }
+
+  .result-grid{ display:flex; flex-wrap:wrap; gap:4px; max-width:240px; }
+  .result-swatch{
+    width:22px; height:22px; padding:0; border-radius:4px;
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#fff; cursor:pointer;
+    text-shadow:0 0 2px rgba(0,0,0,0.9);
+    opacity:0.32;
+  }
+  .result-swatch.demand, .result-swatch.forbid{ opacity:1; }
+  .result-swatch.forbid{ box-shadow: inset 0 0 0 2px rgba(255,255,255,0.6); }
+
+  .ext-section{ margin-top:28px; }
+  .ext-section-title{
+    font-family:var(--mono); font-size:15px; font-weight:600;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--ink);
+    margin:0 0 14px;
+  }
+  .ext-card-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
+    gap:14px;
+  }
+  .ext-card{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:14px;
+  }
+  .ext-card-title{
+    font-family:var(--mono); font-size:12px; font-weight:600;
+    color:var(--ink); margin-bottom:6px;
+  }
+  .ext-card-body{
+    font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+    line-height:1.6;
+  }
+  .ext-card.ext-test-card{ cursor:pointer; }
+  .ext-card.ext-test-card:hover{ border-color:var(--accent); }
+  .ext-test-preview{
+    display:grid; gap:1px; margin-top:10px;
+    border-radius:6px; overflow:hidden; background:var(--line);
+  }
+  .ext-test-cell{ background:#0a0a0c; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>World<span>Crumpler</span></h1>
+  </header>
+
+  <div class="layout">
+    <div class="board">
+      <div class="grid" id="grid"></div>
+      <div class="status" id="status">&nbsp;</div>
+
+      <div class="legend">
+        Click a cell to cycle through the available colors.<br>
+        Black cells are "uncollapsed." <b style="color:#f5c542">Step</b>
+        advances the collapse one stage at a time: first it
+        refreshes every domain from the rules below and pauses,
+        then it finds the lowest-entropy cell(s) — highlighting
+        all ties in yellow — and pauses again, then a click
+        collapses the highlighted cell and starts the next cell's
+        domain refresh. <b>Complete</b> runs the rest (or all of
+        it) automatically at the same pace. Scroll the mouse wheel
+        over any rule-grid cell to cycle it without clicking.
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2>Presets</h2>
+        <div class="preset-row">
+          <button class="preset-btn" id="preset-flowers">💮 Flowers 💮</button>
+          <button class="preset-btn" id="preset-seashores">🏝️ Seashores 🏝️</button>
+          <button class="preset-btn" id="preset-dungeon">💀 Dungeon 💀</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h2>Seed</h2>
+        <label for="seed">Reproducible RNG seed</label>
+        <input type="text" id="seed" placeholder="e.g. cobalt-14" value="test" />
+        <button id="step">Step</button>
+        <button id="complete">Complete</button>
+        <button id="reset">Reset grid</button>
+      </div>
+
+      <div class="card">
+        <h2>Board size</h2>
+        <div class="dim-row">
+          <div>
+            <label for="board-width">Width</label>
+            <input type="number" id="board-width" min="2" max="40" value="12" />
+          </div>
+          <div>
+            <label for="board-height">Height</label>
+            <input type="number" id="board-height" min="2" max="40" value="12" />
+          </div>
+        </div>
+        <button id="resize">Resize</button>
+      </div>
+
+      <div class="card">
+        <h2>Constraint weights</h2>
+        <label>Supply</label>
+        <div class="supply-row">
+          <button class="supply-btn" id="supply-50">50%</button>
+          <button class="supply-btn" id="supply-100">100%</button>
+          <button class="supply-btn" id="supply-200">200%</button>
+          <button class="supply-btn active" id="supply-inf">∞</button>
+        </div>
+        <div class="weights" id="weights"></div>
+        <button id="add-color">+ Add Color</button>
+      </div>
+
+      <div class="card">
+        <h2>Symmetry</h2>
+        <div class="symmetry-row">
+          <button class="sym-btn" id="sym-h">H</button>
+          <button class="sym-btn" id="sym-hreflect">H reflect</button>
+          <button class="sym-btn" id="sym-v">V</button>
+          <button class="sym-btn" id="sym-vreflect">V reflect</button>
+          <button class="sym-btn" id="sym-180">180°</button>
+          <button class="sym-btn" id="sym-180reflect">180° reflect</button>
+          <button class="sym-btn" id="sym-hv">HV</button>
+          <button class="sym-btn" id="sym-hvreflect">HV reflect</button>
+          <button class="sym-btn" id="sym-90">90°</button>
+          <button class="sym-btn" id="sym-90reflect">90° reflect</button>
+          <button class="sym-btn" id="sym-60">60°</button>
+        </div>
+        <label>Brush points:</label>
+        <div class="supply-row">
+          <button class="supply-btn active" id="brush-ditto">Ditto</button>
+          <button class="supply-btn" id="brush-free">Free</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Save / Load</h2>
+        <button id="export">Export JSON</button>
+        <button id="import">Import JSON</button>
+        <button id="share">Share</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none" />
+      </div>
+    </div>
+  </div>
+
+  <div class="rulebuilder" id="rulebuilder">
+    <div class="rb-intro">
+      <b>Colored</b> sections (one per color) describe the Moore
+      neighborhood of <b>N</b> — a tile that must itself be exactly
+      that color. Exactly one of the 8 slots is marked
+      <b style="color:#f5c542">X</b>: the tile-in-question,
+      positioned relative to N. The other 7 slots are checked
+      against N's real neighbors. <b>X rules</b> instead describes
+      X's own Moore neighborhood directly — X sits fixed at the
+      center, no marker needed. Each row's color grid independently
+      marks any number of colors as demanded (✓) or forbidden (✕).
+    </div>
+    <div id="rb-panels"></div>
+  </div>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // CONSTRAINTS — this JSON is the single source of truth for the
+  // wave function's weights and structural rules.
+  //
+  // rules.<color>: each rule's pattern is an 8-slot array (order:
+  // nw, n, ne, w, e, sw, s, se — a 3x3 grid read left-to-right/
+  // top-to-bottom, skipping the center) describing the Moore
+  // neighborhood of N — a tile that must itself be EXACTLY that
+  // color. Exactly ONE slot holds the literal marker 'x' — not a
+  // predicate, but a position label: "the tile-in-question sits
+  // here, relative to N." The other 7 slots are predicates checked
+  // against N's real neighbors.
+  //
+  // rules.x: same 8-slot pattern, but describes X's OWN Moore
+  // neighborhood directly — X is fixed at the center, so there's no
+  // marker and every slot is a predicate against X's real neighbors.
+  //
+  // Predicate codes (CODE is each color's short mnemonic, e.g. 'R'
+  // for red, 'NAV' for navy):
+  //   '?'          always true (wildcard)
+  //   CODE         true if that neighbor is that color OR off the
+  //                board (permissive — an edge counts as support)
+  //   'n'+CODE     the negation of the above
+  //   'e'+CODE     true only for an exact color match — off the
+  //                board does NOT count
+  //
+  // Each rule also has `results`: a map of colorName -> 'demand' |
+  // 'forbid', fully independent of which list the rule lives in and
+  // able to name any number of colors at once. For a given cell,
+  // ONLY rules that actually MATCH there have any effect. A matching
+  // 'demand' narrows the domain down to exactly the union of
+  // demanded colors (a requirement, not an addition to an
+  // already-open set). A matching 'forbid' removes that color
+  // outright, even from a demand-narrowed domain. If nothing matches
+  // at all, the cell is fully unconstrained and the weights decide.
+  // ---------------------------------------------------------------
+  const NEIGHBOR_ORDER = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+  const NEIGHBOR_OFFSETS = {
+    nw: [-1, -1], n: [-1, 0], ne: [-1, 1],
+    w: [0, -1], e: [0, 1],
+    sw: [1, -1], s: [1, 0], se: [1, 1]
+  };
+  const OPPOSITE = { nw: 'se', n: 's', ne: 'sw', w: 'e', e: 'w', sw: 'ne', s: 'n', se: 'nw' };
+  const EDGE = 'EDGE'; // sentinel: this position is off the board
+
+  // Mirrors a direction across a vertical axis (left-right flip):
+  // nw<->ne, w<->e, sw<->se; n/s are on the axis and map to themselves.
+  const REFLECT_H = { nw: 'ne', n: 'n', ne: 'nw', w: 'e', e: 'w', sw: 'se', s: 's', se: 'sw' };
+  // Mirrors a direction across a horizontal axis (top-bottom flip):
+  // nw<->sw, n<->s, ne<->se; w/e are on the axis and map to themselves.
+  const REFLECT_V = { nw: 'sw', n: 's', ne: 'se', w: 'w', e: 'e', sw: 'nw', s: 'n', se: 'ne' };
+  // One 90°-clockwise step of direction rotation (two 4-cycles: the
+  // cardinals and the diagonals), plus its inverse for building the
+  // pattern permutation (see rotatePatternCW).
+  const ROTATE_CW = { n: 'e', e: 's', s: 'w', w: 'n', ne: 'se', se: 'sw', sw: 'nw', nw: 'ne' };
+  const ROTATE_CW_INV = {};
+  Object.keys(ROTATE_CW).forEach(k => { ROTATE_CW_INV[ROTATE_CW[k]] = k; });
+
+  // Reflects/rotates an 8-slot pattern (including wherever its 'x'
+  // marker sits) for evaluating a rule against a point on the far
+  // side of a *-reflect symmetry transform — see "Symmetry" further
+  // down. reflectPatternH/V mirror across the vertical/horizontal
+  // axis; rotatePatternCW rotates `steps` * 90° clockwise (steps 1-3).
+  function reflectPatternH(pattern) {
+    return NEIGHBOR_ORDER.map(dir => pattern[NEIGHBOR_ORDER.indexOf(REFLECT_H[dir])]);
+  }
+  function reflectPatternV(pattern) {
+    return NEIGHBOR_ORDER.map(dir => pattern[NEIGHBOR_ORDER.indexOf(REFLECT_V[dir])]);
+  }
+  function rotatePatternCW(pattern, steps) {
+    return NEIGHBOR_ORDER.map(dir => {
+      let source = dir;
+      for (let i = 0; i < steps; i++) source = ROTATE_CW_INV[source];
+      return pattern[NEIGHBOR_ORDER.indexOf(source)];
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Dynamic color registry. red/green/blue start pre-registered;
+  // "+ Add Color" can add any of ~140 CSS-named colors, and any
+  // color (including the original three) can be removed.
+  // ---------------------------------------------------------------
+  let COLORS = ['red', 'green', 'blue'];
+  let CODE = { red: 'R', green: 'G', blue: 'B' };
+  let CODE_TO_COLOR = { R: 'red', G: 'green', B: 'blue' };
+
+  const CSS_COLOR_NAMES = [
+    'aliceblue','antiquewhite','aqua','aquamarine','azure','beige','bisque','black',
+    'blanchedalmond','blueviolet','brown','burlywood','cadetblue','chartreuse','chocolate',
+    'coral','cornflowerblue','cornsilk','crimson','cyan','darkblue','darkcyan','darkgoldenrod',
+    'darkgray','darkgreen','darkgrey','darkkhaki','darkmagenta','darkolivegreen','darkorange',
+    'darkorchid','darkred','darksalmon','darkseagreen','darkslateblue','darkslategray',
+    'darkslategrey','darkturquoise','darkviolet','deeppink','deepskyblue','dimgray','dimgrey',
+    'dodgerblue','firebrick','floralwhite','forestgreen','fuchsia','gainsboro','ghostwhite',
+    'gold','goldenrod','gray','greenyellow','grey','honeydew','hotpink','indianred','indigo',
+    'ivory','khaki','lavender','lavenderblush','lawngreen','lemonchiffon','lightblue',
+    'lightcoral','lightcyan','lightgoldenrodyellow','lightgray','lightgreen','lightgrey',
+    'lightpink','lightsalmon','lightseagreen','lightskyblue','lightslategray','lightslategrey',
+    'lightsteelblue','lightyellow','lime','limegreen','linen','magenta','maroon',
+    'mediumaquamarine','mediumblue','mediumorchid','mediumpurple','mediumseagreen',
+    'mediumslateblue','mediumspringgreen','mediumturquoise','mediumvioletred','midnightblue',
+    'mintcream','mistyrose','moccasin','navajowhite','navy','oldlace','olive','olivedrab',
+    'orange','orangered','orchid','palegoldenrod','palegreen','paleturquoise','palevioletred',
+    'papayawhip','peachpuff','peru','pink','plum','powderblue','purple','rebeccapurple',
+    'rosybrown','royalblue','saddlebrown','salmon','sandybrown','seagreen','seashell','sienna',
+    'silver','skyblue','slateblue','slategray','slategrey','snow','springgreen','steelblue',
+    'tan','teal','thistle','tomato','turquoise','violet','wheat','white','whitesmoke','yellow',
+    'yellowgreen'
+  ];
+
+  function isRGB(name) { return name === 'red' || name === 'green' || name === 'blue'; }
+  function colorCss(name) { return isRGB(name) ? 'var(--' + name + ')' : name; }
+  function makeColorCode(name) {
+    const existing = new Set(Object.values(CODE));
+    let len = 3;
+    let code = name.slice(0, len).toUpperCase();
+    while (existing.has(code) && len < name.length) {
+      len++;
+      code = name.slice(0, len).toUpperCase();
+    }
+    while (existing.has(code)) code += 'X';
+    return code;
+  }
+
+  function blankPattern() { return NEIGHBOR_ORDER.map(() => '?'); }
+  function defaultPattern() {
+    const p = blankPattern();
+    p[NEIGHBOR_ORDER.indexOf('n')] = 'x';
+    return p;
+  }
+  function markerAt(dir, overrides) {
+    const p = blankPattern();
+    p[NEIGHBOR_ORDER.indexOf(dir)] = 'x';
+    if (overrides) for (const d in overrides) p[NEIGHBOR_ORDER.indexOf(d)] = overrides[d];
+    return p;
+  }
+
+  const CONSTRAINTS = {
+    weights: { red: 50, green: 30, blue: 10 },
+    rules: {
+      // four rotations of a red "tip": N is red with exactly one open
+      // cardinal side (pointing at x) and the other three cardinals
+      // confirmed non-red — grows thin red tendrils rather than blobs
+      red: [
+        { pattern: markerAt('s', { n: 'nR', w: 'nR', e: 'nR' }), results: { red: 'demand' } },
+        { pattern: markerAt('e', { n: 'nR', w: 'nR', s: 'nR' }), results: { red: 'demand' } },
+        { pattern: markerAt('w', { n: 'nR', e: 'nR', s: 'nR' }), results: { red: 'demand' } },
+        { pattern: markerAt('n', { w: 'nR', e: 'nR', s: 'nR' }), results: { red: 'demand' } }
+      ],
+      green: [],
+      blue: [
+        // N sits east of x, all else wildcard — x may not be blue if
+        // that would put a blue tile (x) to N's west/left
+        { pattern: markerAt('w'), results: { blue: 'forbid' } }
+      ],
+      // rules here describe X's own Moore neighborhood directly —
+      // X sits fixed at the center, no marker, no anchor tile N
+      x: []
+    }
+  };
+
+  // per-cell state: color name string, or null (black/uncollapsed)
+  let W = 12, H = 12;
+  let TOTAL = W * H;
+  let cells = new Array(TOTAL).fill(null);
+
+  // per-cell allowed-color domain, meaningful only where cells[i]===null.
+  // Recomputed from scratch by refreshDomains() whenever it's needed —
+  // both live (for tooltips as you click) and during Complete.
+  let domains = new Array(TOTAL).fill(null);
+
+  // The resumable collapse session driving both Step and Complete.
+  // null when idle; otherwise { remaining, rng, phase, selected, candidates }
+  // phase is one of 'needDomains' | 'needPick' | 'needCollapse'.
+  let wfc = null;
+
+  // ---------------------------------------------------------------
+  // Grid geometry helpers. resolveState/stateAt work with raw (r,c)
+  // pairs that may fall outside the board — needed because N (the
+  // rule's reference tile) can itself be off-board, and we still need
+  // to evaluate N's *own* neighbors in that case (see ruleMatchesViaN).
+  // ---------------------------------------------------------------
+  function idx(r, c) { return r * W + c; }
+  function rc(i) { return [Math.floor(i / W), i % W]; }
+  function resolveState(r, c) {
+    if (r < 0 || r >= H || c < 0 || c >= W) return EDGE;
+    return cells[idx(r, c)]; // color name, or null if still uncollapsed
+  }
+  function stateAt(r, c, dir) {
+    const [dr, dc] = NEIGHBOR_OFFSETS[dir];
+    return resolveState(r + dr, c + dc);
+  }
+
+  // ---------------------------------------------------------------
+  // Predicate codes are resolved dynamically against the current
+  // color registry (CODE_TO_COLOR), rather than a fixed R/G/B table,
+  // so newly added or removed colors work everywhere automatically.
+  // ---------------------------------------------------------------
+  function predFor(code) {
+    if (code === '?') return () => true;
+    if (code === 'x') return () => false; // marker slot — never evaluated as a predicate
+    const isNeg = code[0] === 'n' && code.length > 1 && CODE_TO_COLOR[code.slice(1)];
+    const isExact = code[0] === 'e' && code.length > 1 && CODE_TO_COLOR[code.slice(1)];
+    const base = (isNeg || isExact) ? code.slice(1) : code;
+    const colorName = CODE_TO_COLOR[base];
+    if (!colorName) return () => false;
+    if (isExact) return s => s === colorName;
+    if (isNeg) return s => !(s === colorName || s === EDGE);
+    return s => s === colorName || s === EDGE;
+  }
+
+  // ---------------------------------------------------------------
+  // Rule evaluation. Two shapes of rule:
+  //   ruleMatchesViaN  — anchor lists (one per color): N (found via
+  //                      the marker, opposite direction from x) must
+  //                      be exactly anchorCode; the other 7 slots
+  //                      check N's own neighbors.
+  //   ruleMatchesDirect — the x list: all 8 slots check x's own
+  //                      neighbors directly, no marker, no N.
+  // Both accept an optional `transform` (e.g. reflectPatternH) applied
+  // to the rule's pattern before matching — used only when checking a
+  // symmetry brush's secondary point under H-reflect (see Symmetry
+  // below); every other caller omits it and matches the rule as-is.
+  // Everything reads only CURRENT concrete colors (never another
+  // cell's in-progress domain), so it's a single direct pass per
+  // cell — no fixpoint loop needed.
+  // ---------------------------------------------------------------
+  function ruleMatchesViaN(rule, anchorCode, xi, transform) {
+    const pattern = transform ? transform(rule.pattern) : rule.pattern;
+    const markerPos = pattern.indexOf('x');
+    if (markerPos === -1) return false; // no marker set — can't apply to anything
+    const towardN = OPPOSITE[NEIGHBOR_ORDER[markerPos]]; // N's position relative to x
+    const [xr, xc] = rc(xi);
+    const [dr, dc] = NEIGHBOR_OFFSETS[towardN];
+    const Nr = xr + dr, Nc = xc + dc;
+
+    if (!predFor('e' + anchorCode)(resolveState(Nr, Nc))) return false; // N must genuinely be this color
+
+    for (let k = 0; k < 8; k++) {
+      if (k === markerPos) continue;
+      if (!predFor(pattern[k])(stateAt(Nr, Nc, NEIGHBOR_ORDER[k]))) return false;
+    }
+    return true;
+  }
+  function ruleMatchesDirect(rule, xi, transform) {
+    const pattern = transform ? transform(rule.pattern) : rule.pattern;
+    const [xr, xc] = rc(xi);
+    for (let k = 0; k < 8; k++) {
+      if (!predFor(pattern[k])(stateAt(xr, xc, NEIGHBOR_ORDER[k]))) return false;
+    }
+    return true;
+  }
+  // For cell i, walk every rule (across every color's list plus the
+  // x list) and keep only the ones that actually MATCH there. From
+  // that matched set: no matches at all -> fully unconstrained;
+  // matched demands narrow the domain to their union; matched
+  // forbids remove those colors even from a demand-narrowed domain.
+  // `transform`, if given, is forwarded to every rule check (see above).
+  function computeDomain(i, transform) {
+    const demanded = new Set();
+    const forbidden = new Set();
+    function record(rule, matched) {
+      if (!matched) return;
+      for (const colorName in rule.results) {
+        const vote = rule.results[colorName];
+        if (vote === 'demand') demanded.add(colorName);
+        else if (vote === 'forbid') forbidden.add(colorName);
+      }
+    }
+    for (const anchorColor of COLORS) {
+      const anchorCode = CODE[anchorColor];
+      for (const rule of CONSTRAINTS.rules[anchorColor] || []) {
+        record(rule, ruleMatchesViaN(rule, anchorCode, i, transform));
+      }
+    }
+    for (const rule of CONSTRAINTS.rules.x || []) {
+      record(rule, ruleMatchesDirect(rule, i, transform));
+    }
+
+    const base = demanded.size > 0 ? demanded : new Set(COLORS);
+    let domain = COLORS.filter(c => base.has(c) && !forbidden.has(c));
+    if (domain.length === 0 && demanded.size > 0) {
+      // demand and forbid directly conflicted on the same color(s) —
+      // relax the demand-narrowing and keep only the forbids
+      domain = COLORS.filter(c => !forbidden.has(c));
+    }
+    if (supplyMode !== 'inf') {
+      domain = domain.filter(c => !supplyExhausted(c));
+    }
+    // NOTE: if domain is still empty here, that's not an error to
+    // paper over — it means nothing is allowed at this cell, so it
+    // must stay black. The collapse engine (advanceWfc) is
+    // responsible for skipping such cells rather than crashing.
+    return domain;
+  }
+  function refreshDomains() {
+    domains = cells.map((c, i) => (c === null ? computeDomain(i) : null));
+  }
+
+  // ---------------------------------------------------------------
+  // Supply — an optional finite tile budget per color. '50'/'100'/
+  // '200' are percentages of (board area x weight%); 'inf' (default)
+  // is unlimited, matching the tool's original behavior. Remaining
+  // supply is derived live from how many tiles of that color are
+  // currently on the board — not a separately-tracked counter — so
+  // it stays correct across manual edits, resets, and imports for
+  // free, and 50%/100% naturally leave some cells permanently black
+  // once a color runs out (same "no valid color" path as any other
+  // exhausted domain).
+  // ---------------------------------------------------------------
+  let supplyMode = 'inf'; // '50' | '100' | '200' | 'inf'
+  function totalSupply(colorName) {
+    if (supplyMode === 'inf') return Infinity;
+    const P = { '50': 0.5, '100': 1, '200': 2 }[supplyMode];
+    return Math.floor(W * H * P * ((CONSTRAINTS.weights[colorName] || 0) / 100));
+  }
+  function countOnBoard(colorName) {
+    let n = 0;
+    for (let i = 0; i < TOTAL; i++) if (cells[i] === colorName) n++;
+    return n;
+  }
+  function supplyExhausted(colorName) {
+    if (supplyMode === 'inf') return false;
+    return countOnBoard(colorName) >= totalSupply(colorName);
+  }
+
+  // ---------------------------------------------------------------
+  // Seeded RNG (mulberry32), seeded from an arbitrary string via a
+  // simple string hash (cyrb53-lite) so the same seed text always
+  // reproduces the same collapse sequence.
+  // ---------------------------------------------------------------
+  function hashSeed(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return () => {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      h ^= h >>> 16;
+      return h >>> 0;
+    };
+  }
+  function mulberry32(seedInt) {
+    let a = seedInt;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeRng(seedText) {
+    const text = (seedText && seedText.trim()) || String(Date.now());
+    const seedFn = hashSeed(text);
+    return mulberry32(seedFn());
+  }
+
+  // ---------------------------------------------------------------
+  // Probability / entropy over a domain of colors, using CONSTRAINTS.
+  // ---------------------------------------------------------------
+  function probabilities(domain) {
+    const w = CONSTRAINTS.weights;
+    const total = domain.reduce((s, c) => s + (w[c] || 0), 0);
+    if (total <= 0) return domain.map(() => 1 / domain.length);
+    return domain.map(c => (w[c] || 0) / total);
+  }
+  function shannonEntropy(domain) {
+    const ps = probabilities(domain);
+    return -ps.reduce((s, p) => (p > 0 ? s + p * Math.log2(p) : s), 0);
+  }
+  function weightedPick(domain, rng) {
+    if (domain.length === 0) return null; // defensive — collapse loop should never reach this with an empty domain
+    const ps = probabilities(domain);
+    let r = rng();
+    for (let i = 0; i < domain.length; i++) {
+      r -= ps[i];
+      if (r <= 0) return domain[i];
+    }
+    return domain[domain.length - 1];
+  }
+
+  // ---------------------------------------------------------------
+  // Main grid rendering. buildGrid() (re)creates the DOM for the
+  // current W x H — called on load and whenever the board is resized
+  // or a file is imported.
+  // ---------------------------------------------------------------
+  const gridEl = document.getElementById('grid');
+  let els = [];
+  function buildGrid() {
+    gridEl.innerHTML = '';
+    gridEl.style.gridTemplateColumns = 'repeat(' + W + ', 1fr)';
+    gridEl.style.aspectRatio = W + ' / ' + H;
+    els = [];
+    for (let i = 0; i < TOTAL; i++) {
+      const b = document.createElement('button');
+      b.className = 'cell';
+      b.setAttribute('aria-label', 'cell ' + i);
+      b.addEventListener('click', () => onCellClick(i));
+      gridEl.appendChild(b);
+      els.push(b);
+    }
+  }
+  buildGrid();
+
+  function render(i) {
+    const el = els[i];
+    el.classList.remove('red', 'green', 'blue');
+    el.style.background = '';
+    if (cells[i]) {
+      if (isRGB(cells[i])) el.classList.add(cells[i]);
+      else el.style.background = colorCss(cells[i]);
+      el.title = 'collapsed: ' + cells[i];
+    } else {
+      const dom = domains[i] || COLORS;
+      if (dom.length === 0) {
+        el.title = 'uncollapsed · no valid color here — will remain black';
+      } else {
+        const h = shannonEntropy(dom).toFixed(3);
+        el.title = 'uncollapsed · entropy ' + h + ' bits · allowed: ' + dom.join(', ');
+      }
+    }
+  }
+  function renderCells() { for (let i = 0; i < TOTAL; i++) render(i); }
+  function renderAll() {
+    refreshDomains();
+    renderCells();
+    renderWeights();
+  }
+
+  function clearMarks() {
+    els.forEach(el => el.classList.remove('candidate', 'settling'));
+  }
+
+  function onCellClick(i) {
+    if (wfc) { // manual edit invalidates any paused step session
+      wfc = null;
+      clearMarks();
+      setStatus('Grid edited — step session reset.');
+    }
+    const cycle = [null, ...COLORS];
+    const cycleIdx = cycle.indexOf(cells[i]);
+    cells[i] = cycle[(cycleIdx + 1) % cycle.length];
+    renderAll(); // a single change can shift neighbors' allowed domains
+  }
+
+  document.getElementById('reset').addEventListener('click', () => {
+    wfc = null;
+    cells = new Array(TOTAL).fill(null);
+    clearMarks();
+    renderAll();
+    setStatus('Grid reset.');
+  });
+
+  // ---------------------------------------------------------------
+  // Board size — rebuilds the grid (and resets it) at a new W x H
+  // ---------------------------------------------------------------
+  const widthInput = document.getElementById('board-width');
+  const heightInput = document.getElementById('board-height');
+  function clampDim(val) {
+    const n = parseInt(val, 10);
+    if (isNaN(n)) return 12;
+    return Math.max(2, Math.min(40, n));
+  }
+  function resizeBoard() {
+    const newW = clampDim(widthInput.value);
+    const newH = clampDim(heightInput.value);
+    widthInput.value = newW;
+    heightInput.value = newH;
+    W = newW; H = newH; TOTAL = W * H;
+    wfc = null;
+    cells = new Array(TOTAL).fill(null);
+    domains = new Array(TOTAL).fill(null);
+    buildGrid();
+    renderAll();
+    setStatus('Board resized to ' + W + '×' + H + '.');
+  }
+  document.getElementById('resize').addEventListener('click', resizeBoard);
+
+  // ---------------------------------------------------------------
+  // Supply mode buttons — mutually exclusive; switching modes can
+  // immediately exhaust or un-exhaust colors, so it refreshes domains.
+  // ---------------------------------------------------------------
+  const SUPPLY_BUTTON_IDS = { '50': 'supply-50', '100': 'supply-100', '200': 'supply-200', inf: 'supply-inf' };
+  function updateSupplyButtons() {
+    Object.keys(SUPPLY_BUTTON_IDS).forEach(key => {
+      document.getElementById(SUPPLY_BUTTON_IDS[key]).classList.toggle('active', key === supplyMode);
+    });
+  }
+  Object.keys(SUPPLY_BUTTON_IDS).forEach(key => {
+    document.getElementById(SUPPLY_BUTTON_IDS[key]).addEventListener('click', () => {
+      supplyMode = key;
+      updateSupplyButtons();
+      renderAll();
+    });
+  });
+  updateSupplyButtons();
+
+  // ---------------------------------------------------------------
+  // Symmetry — 'none' (default), or one of ten point-group modes.
+  // Each maps the chosen brushpoint to 1-5 EXTRA points (see
+  // symmetryPointSpecs). Plain modes (H, V, 180°, HV, 90°, 60°) check
+  // each extra point with the rules exactly as written, so they only
+  // mirror POSITION. The matching *-reflect modes additionally
+  // pattern-transform the rules before checking that point (see
+  // reflectPatternH/V, rotatePatternCW), so the rule's own directional
+  // meaning mirrors/rotates too — true reflective/rotational symmetry
+  // rather than a literal copy at a new position. 60° has no reflect
+  // variant: its points don't land on any of the 8 rule directions
+  // (all multiples of 45°), so there's no sensible way to
+  // pattern-transform a rule by 60°. Clicking the active button turns
+  // it back off; clicking a different one switches directly.
+  // ---------------------------------------------------------------
+  let symmetryMode = 'none';
+  const SYMMETRY_BUTTON_IDS = {
+    h: 'sym-h', hreflect: 'sym-hreflect',
+    v: 'sym-v', vreflect: 'sym-vreflect',
+    '180': 'sym-180', '180reflect': 'sym-180reflect',
+    hv: 'sym-hv', hvreflect: 'sym-hvreflect',
+    '90': 'sym-90', '90reflect': 'sym-90reflect',
+    '60': 'sym-60'
+  };
+  function updateSymmetryButtons() {
+    Object.keys(SYMMETRY_BUTTON_IDS).forEach(key => {
+      document.getElementById(SYMMETRY_BUTTON_IDS[key]).classList.toggle('active', key === symmetryMode);
+    });
+  }
+  Object.keys(SYMMETRY_BUTTON_IDS).forEach(key => {
+    document.getElementById(SYMMETRY_BUTTON_IDS[key]).addEventListener('click', () => {
+      symmetryMode = (symmetryMode === key) ? 'none' : key;
+      updateSymmetryButtons();
+    });
+  });
+  updateSymmetryButtons();
+
+  // Mirrors a cell index across the vertical axis (left-right flip).
+  // A cell already on the axis (odd width, center column) maps to itself.
+  function mirrorIndexH(i) { const [r, c] = rc(i); return idx(r, W - 1 - c); }
+  // Mirrors a cell index across the horizontal axis (top-bottom flip).
+  function mirrorIndexV(i) { const [r, c] = rc(i); return idx(H - 1 - r, c); }
+  // 180° rotation (point reflection through the board's center).
+  function rotateIndex180(i) { const [r, c] = rc(i); return idx(H - 1 - r, W - 1 - c); }
+  // Rotates a cell index by an arbitrary angle around the board's
+  // center, rounding to the nearest cell. Only 90°-multiples land
+  // exactly on a grid cell for every board size; other angles (60°
+  // etc.) — and 90°-multiples on a non-square board — are genuinely
+  // approximate, which is exactly why out-of-bounds results here get
+  // dropped from the brush rather than clamped or wrapped.
+  function rotateIndexBy(i, angleDeg) {
+    const [r, c] = rc(i);
+    const cy = (H - 1) / 2, cx = (W - 1) / 2;
+    const rad = angleDeg * Math.PI / 180;
+    const relRow = r - cy, relCol = c - cx;
+    const nr = Math.round(cy + relRow * Math.cos(rad) + relCol * Math.sin(rad));
+    const nc = Math.round(cx - relRow * Math.sin(rad) + relCol * Math.cos(rad));
+    if (nr < 0 || nr >= H || nc < 0 || nc >= W) return null; // off-canvas — dropped, not clamped
+    return idx(nr, nc);
+  }
+
+  // For a given symmetryMode, the list of extra brush points beyond
+  // the chosen winner: each spec's `pos` maps the winner's index to
+  // that point's index (or null if it's off-canvas), and `rule` is
+  // the pattern transform to apply when checking that point under a
+  // *-reflect mode (null under a plain mode — checked as-written).
+  function symmetryPointSpecs(mode) {
+    switch (mode) {
+      case 'h': return [{ pos: mirrorIndexH, rule: null }];
+      case 'hreflect': return [{ pos: mirrorIndexH, rule: reflectPatternH }];
+      case 'v': return [{ pos: mirrorIndexV, rule: null }];
+      case 'vreflect': return [{ pos: mirrorIndexV, rule: reflectPatternV }];
+      case '180': return [{ pos: rotateIndex180, rule: null }];
+      case '180reflect': return [{ pos: rotateIndex180, rule: p => rotatePatternCW(p, 2) }];
+      case 'hv': return [
+        { pos: mirrorIndexH, rule: null },
+        { pos: mirrorIndexV, rule: null },
+        { pos: i => mirrorIndexV(mirrorIndexH(i)), rule: null }
+      ];
+      case 'hvreflect': return [
+        { pos: mirrorIndexH, rule: reflectPatternH },
+        { pos: mirrorIndexV, rule: reflectPatternV },
+        { pos: i => mirrorIndexV(mirrorIndexH(i)), rule: p => rotatePatternCW(p, 2) }
+      ];
+      case '90': return [
+        { pos: i => rotateIndexBy(i, 90), rule: null },
+        { pos: i => rotateIndexBy(i, 180), rule: null },
+        { pos: i => rotateIndexBy(i, 270), rule: null }
+      ];
+      case '90reflect': return [
+        { pos: i => rotateIndexBy(i, 90), rule: p => rotatePatternCW(p, 1) },
+        { pos: i => rotateIndexBy(i, 180), rule: p => rotatePatternCW(p, 2) },
+        { pos: i => rotateIndexBy(i, 270), rule: p => rotatePatternCW(p, 3) }
+      ];
+      case '60': return [
+        { pos: i => rotateIndexBy(i, 60), rule: null },
+        { pos: i => rotateIndexBy(i, 120), rule: null },
+        { pos: i => rotateIndexBy(i, 180), rule: null },
+        { pos: i => rotateIndexBy(i, 240), rule: null },
+        { pos: i => rotateIndexBy(i, 300), rule: null }
+      ];
+      default: return [];
+    }
+  }
+
+  // Brush points — resolves the ambiguity of whether a multi-point
+  // brush must land on one shared color. 'ditto' (default): the
+  // brush only paints if every point's domain overlaps, then all
+  // points get that one shared color. 'free': each point only needs
+  // its OWN domain to be non-empty and gets its own independent
+  // weighted pick — points can end up different colors. Either way,
+  // if any point in the brush can't be painted at all, none of the
+  // brush is painted (unchanged from before).
+  let brushMode = 'ditto'; // 'ditto' | 'free'
+  const BRUSH_MODE_BUTTON_IDS = { ditto: 'brush-ditto', free: 'brush-free' };
+  function updateBrushModeButtons() {
+    Object.keys(BRUSH_MODE_BUTTON_IDS).forEach(key => {
+      document.getElementById(BRUSH_MODE_BUTTON_IDS[key]).classList.toggle('active', key === brushMode);
+    });
+  }
+  Object.keys(BRUSH_MODE_BUTTON_IDS).forEach(key => {
+    document.getElementById(BRUSH_MODE_BUTTON_IDS[key]).addEventListener('click', () => {
+      brushMode = key;
+      updateBrushModeButtons();
+    });
+  });
+  updateBrushModeButtons();
+
+  // ---------------------------------------------------------------
+  // Weight panel — live sliders (0-99) directly editing CONSTRAINTS,
+  // plus a remove button per color and a live remaining-supply
+  // readout. Weights alone only affect entropy/weighted-pick; once
+  // supply is finite, weight also determines each color's tile
+  // budget, so a slider change refreshes domains in that mode too.
+  // ---------------------------------------------------------------
+  function renderWeights() {
+    const host = document.getElementById('weights');
+    host.innerHTML = '';
+    const w = CONSTRAINTS.weights;
+    COLORS.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'wrow-slider';
+
+      const top = document.createElement('div');
+      top.className = 'wrow-top';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'wname';
+      nameEl.innerHTML = '<span class="swatch" style="background:' + colorCss(c) + '"></span>' + c;
+      const valEl = document.createElement('span');
+      valEl.className = 'wval';
+      valEl.textContent = w[c];
+      const supplyEl = document.createElement('span');
+      supplyEl.className = 'wsupply';
+      function updateSupplyText() {
+        if (supplyMode === 'inf') { supplyEl.textContent = ''; return; }
+        const total = totalSupply(c);
+        const used = countOnBoard(c);
+        supplyEl.textContent = ' · ' + Math.max(0, total - used) + '/' + total + ' left';
+      }
+      updateSupplyText();
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'wremove';
+      removeBtn.textContent = '×';
+      removeBtn.title = 'Remove ' + c;
+      removeBtn.addEventListener('click', () => removeColor(c));
+      top.appendChild(nameEl);
+      top.appendChild(valEl);
+      top.appendChild(supplyEl);
+      top.appendChild(removeBtn);
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.className = 'wslider';
+      slider.min = '0';
+      slider.max = '99';
+      slider.value = String(w[c]);
+      slider.style.accentColor = colorCss(c);
+      slider.addEventListener('input', () => {
+        w[c] = parseInt(slider.value, 10);
+        valEl.textContent = w[c];
+        updateSupplyText();
+        if (supplyMode !== 'inf') { refreshDomains(); renderCells(); }
+        else renderCells();
+      });
+
+      row.appendChild(top);
+      row.appendChild(slider);
+      host.appendChild(row);
+    });
+  }
+  renderWeights();
+
+  function addColor(name) {
+    const code = makeColorCode(name);
+    COLORS.push(name);
+    CODE[name] = code;
+    CODE_TO_COLOR[code] = name;
+    CONSTRAINTS.weights[name] = 20;
+    CONSTRAINTS.rules[name] = [];
+    renderWeights();
+    renderRuleBuilder();
+    renderAll();
+    setStatus('Added ' + name + '.');
+  }
+  function removeColor(name) {
+    if (COLORS.length <= 1) { setStatus('At least one color is required.'); return; }
+    const code = CODE[name];
+    COLORS = COLORS.filter(c => c !== name);
+    delete CONSTRAINTS.weights[name];
+    delete CONSTRAINTS.rules[name];
+    delete CODE[name];
+    delete CODE_TO_COLOR[code];
+
+    // scrub every remaining rule of references to the removed color:
+    // drop its vote from `results`, and reset any pattern slot that
+    // predicated on its code back to wildcard
+    [...COLORS, 'x'].forEach(kind => {
+      (CONSTRAINTS.rules[kind] || []).forEach(rule => {
+        delete rule.results[name];
+        rule.pattern = rule.pattern.map(slot => {
+          if (slot === '?' || slot === 'x') return slot;
+          const isNeg = slot[0] === 'n' && slot.length > 1;
+          const isExact = slot[0] === 'e' && slot.length > 1;
+          const base = (isNeg || isExact) ? slot.slice(1) : slot;
+          return base === code ? '?' : slot;
+        });
+      });
+    });
+
+    cells = cells.map(c => (c === name ? null : c));
+    wfc = null;
+    renderWeights();
+    renderRuleBuilder();
+    renderAll();
+    setStatus('Removed ' + name + '.');
+  }
+  document.getElementById('add-color').addEventListener('click', () => {
+    const pool = CSS_COLOR_NAMES.filter(n => !COLORS.includes(n));
+    if (pool.length === 0) { setStatus('All available color names are already in use.'); return; }
+    const rng = makeRng((seedInput ? seedInput.value : '') + ':addcolor:' + COLORS.length);
+    const pick = pool[Math.floor(rng() * pool.length)];
+    addColor(pick);
+  });
+
+  // ---------------------------------------------------------------
+  // Rule builder — one panel per color plus an X panel, all built
+  // dynamically from COLORS so adding/removing a color (or importing
+  // a file) rebuilds the whole section automatically. For a color
+  // panel the center is N (fixed, colored for that anchor color; N
+  // is always exactly that color); for the X panel the center IS the
+  // tile-in-question, and slots are plain predicates against its own
+  // neighbors (no marker). Non-RGB colors render as a solid glyph
+  // ('█' permissive/exact, '▭' negated) colored to match, since a
+  // single unambiguous letter isn't available once colors are
+  // arbitrary CSS names. Every predicate cell also intercepts the
+  // mouse wheel to cycle without clicking. Each row's result grid
+  // independently marks any number of colors as demanded/forbidden.
+  // ---------------------------------------------------------------
+  function anchorCycleStates() {
+    const states = ['?', 'x'];
+    COLORS.forEach(c => { const code = CODE[c]; states.push(code, 'n' + code, 'e' + code); });
+    return states;
+  }
+  function directCycleStates() {
+    const states = ['?'];
+    COLORS.forEach(c => { const code = CODE[c]; states.push(code, 'n' + code, 'e' + code); });
+    return states;
+  }
+  function cycleCode(code, states, dir) {
+    const i = states.indexOf(code);
+    const n = states.length;
+    const start = i === -1 ? 0 : i;
+    return states[((start + dir) % n + n) % n];
+  }
+  function codeInfo(code) {
+    if (code === '?') return { cls: 'wild', label: '?', title: 'wildcard — always true', color: null };
+    if (code === 'x') return { cls: 'marker', label: 'X', title: 'the tile-in-question', color: null };
+    const isNeg = code[0] === 'n' && code.length > 1 && CODE_TO_COLOR[code.slice(1)];
+    const isExact = code[0] === 'e' && code.length > 1 && CODE_TO_COLOR[code.slice(1)];
+    const base = (isNeg || isExact) ? code.slice(1) : code;
+    const colorName = CODE_TO_COLOR[base];
+    if (!colorName) return { cls: 'wild', label: '?', title: 'unrecognized code', color: null };
+    if (isRGB(colorName)) {
+      if (isNeg) return { cls: colorName, label: '¬' + base, title: 'not ' + colorName + ' (off-board counts as ' + colorName + ')', color: null };
+      if (isExact) return { cls: colorName + ' exact', label: base + '!', title: 'exactly ' + colorName + ' — off-board does NOT count', color: null };
+      return { cls: colorName, label: base, title: colorName + ' (off-board also counts as ' + colorName + ')', color: null };
+    }
+    const css = colorCss(colorName);
+    if (isNeg) return { cls: 'dyncolor', label: '▭', title: 'not ' + colorName + ' (off-board counts as ' + colorName + ')', color: css };
+    if (isExact) return { cls: 'dyncolor exact', label: '█', title: 'exactly ' + colorName + ' — off-board does NOT count', color: css };
+    return { cls: 'dyncolor', label: '█', title: colorName + ' (off-board also counts as ' + colorName + ')', color: css };
+  }
+  function renderMooreGrid(pattern, kind, onSlotChange) {
+    const grid = document.createElement('div');
+    grid.className = 'moore';
+    grid.addEventListener('wheel', e => e.preventDefault(), { passive: false }); // keep page from scrolling while over the widget
+    const layout = ['nw', 'n', 'ne', 'w', null, 'e', 'sw', 's', 'se'];
+    layout.forEach(dir => {
+      if (dir === null) {
+        const c = document.createElement('div');
+        if (kind === 'x') {
+          c.className = 'moore-cell center target';
+          c.textContent = 'X';
+          c.title = 'the tile-in-question';
+        } else if (isRGB(kind)) {
+          c.className = 'moore-cell center ' + kind;
+          c.textContent = CODE[kind];
+          c.title = 'N — the ' + kind + ' tile this rule describes (always exactly ' + kind + ')';
+        } else {
+          c.className = 'moore-cell center';
+          c.textContent = CODE[kind];
+          c.style.fontSize = CODE[kind].length > 2 ? '9px' : '12px';
+          c.style.background = colorCss(kind);
+          c.style.borderColor = colorCss(kind);
+          c.style.color = '#fff';
+          c.style.textShadow = '0 0 3px rgba(0,0,0,0.9)';
+          c.title = 'N — the ' + kind + ' tile this rule describes (always exactly ' + kind + ')';
+        }
+        grid.appendChild(c);
+        return;
+      }
+      const pos = NEIGHBOR_ORDER.indexOf(dir);
+      const isMarker = kind !== 'x' && pattern[pos] === 'x';
+      const info = codeInfo(pattern[pos]);
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'moore-cell ' + info.cls;
+      c.textContent = info.label;
+      if (info.color) { c.style.color = info.color; c.style.borderColor = info.color; }
+      c.title = kind === 'x'
+        ? dir.toUpperCase() + ' of X: ' + info.title
+        : (isMarker ? 'x — the tile-in-question, positioned ' + dir.toUpperCase() + ' of N' : dir.toUpperCase() + ' of N: ' + info.title);
+      c.addEventListener('click', () => onSlotChange(pos, 1));
+      c.addEventListener('wheel', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSlotChange(pos, e.deltaY > 0 ? 1 : -1);
+      }, { passive: false });
+      grid.appendChild(c);
+    });
+    return grid;
+  }
+  function renderResultGrid(rule, onChange) {
+    const wrap = document.createElement('div');
+    wrap.className = 'result-grid';
+    COLORS.forEach(colorName => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const vote = rule.results[colorName];
+      btn.className = 'result-swatch' + (vote ? ' ' + vote : '');
+      btn.style.background = colorCss(colorName);
+      btn.textContent = vote === 'demand' ? '✓' : vote === 'forbid' ? '✕' : '';
+      btn.title = colorName + ' — click to cycle: neutral → demand → forbid';
+      btn.addEventListener('click', () => {
+        const order = [undefined, 'demand', 'forbid'];
+        const idx2 = order.indexOf(vote);
+        const next = order[(idx2 + 1) % order.length];
+        if (next === undefined) delete rule.results[colorName];
+        else rule.results[colorName] = next;
+        onChange();
+      });
+      wrap.appendChild(btn);
+    });
+    return wrap;
+  }
+  function resultsToCompact(results) {
+    return Object.keys(results)
+      .map(color => (results[color] === 'forbid' ? 'n' : '') + CODE[color])
+      .join(',');
+  }
+  function renderColorPanelRows(host, kind) {
+    const rules = CONSTRAINTS.rules[kind] || [];
+    const cycleStates = kind === 'x' ? directCycleStates() : anchorCycleStates();
+    if (rules.length === 0) {
+      const p = document.createElement('div');
+      p.className = 'rb-empty';
+      p.textContent = 'No rules in this section yet.';
+      host.appendChild(p);
+    }
+    rules.forEach((rule, rowIndex) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'rb-row';
+
+      rowEl.appendChild(renderMooreGrid(rule.pattern, kind, (posIdx, dir) => {
+        const next = cycleCode(rule.pattern[posIdx], cycleStates, dir);
+        if (next === 'x') {
+          const prevMarker = rule.pattern.indexOf('x');
+          if (prevMarker !== -1 && prevMarker !== posIdx) rule.pattern[prevMarker] = '?';
+        }
+        rule.pattern[posIdx] = next;
+        onRulesChanged();
+      }));
+
+      const meta = document.createElement('div');
+      meta.className = 'rb-meta';
+      meta.appendChild(renderResultGrid(rule, onRulesChanged));
+
+      if (kind !== 'x') {
+        const markerCount = rule.pattern.filter(p => p === 'x').length;
+        if (markerCount !== 1) {
+          const warn = document.createElement('div');
+          warn.className = 'rb-warn';
+          warn.textContent = '⚠ needs exactly one X (currently ' + markerCount + ')';
+          meta.appendChild(warn);
+        }
+      }
+
+      const keyEl = document.createElement('div');
+      keyEl.className = 'rb-key';
+      keyEl.textContent = rule.pattern.join('/') + '  →  ' + resultsToCompact(rule.results);
+      meta.appendChild(keyEl);
+
+      const del = document.createElement('button');
+      del.className = 'rb-delete';
+      del.textContent = '× Remove';
+      del.addEventListener('click', () => {
+        CONSTRAINTS.rules[kind].splice(rowIndex, 1);
+        onRulesChanged();
+      });
+      meta.appendChild(del);
+
+      rowEl.appendChild(meta);
+      host.appendChild(rowEl);
+    });
+  }
+  function renderRuleBuilder() {
+    const host = document.getElementById('rb-panels');
+    host.innerHTML = '';
+    [...COLORS, 'x'].forEach(kind => {
+      const panel = document.createElement('div');
+      panel.className = 'color-panel';
+
+      const h3 = document.createElement('h3');
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = kind === 'x' ? 'var(--accent)' : colorCss(kind);
+      h3.appendChild(dot);
+      const label = kind === 'x' ? 'X rules' : kind.charAt(0).toUpperCase() + kind.slice(1) + ' rules';
+      h3.appendChild(document.createTextNode(label));
+      panel.appendChild(h3);
+
+      const rowsHost = document.createElement('div');
+      rowsHost.className = 'rb-rows';
+      panel.appendChild(rowsHost);
+      renderColorPanelRows(rowsHost, kind);
+
+      const addBtn = document.createElement('button');
+      addBtn.className = 'rb-add';
+      addBtn.textContent = '+ Add rule';
+      addBtn.addEventListener('click', () => {
+        const pattern = kind === 'x' ? blankPattern() : defaultPattern();
+        CONSTRAINTS.rules[kind].push({ pattern, results: {} });
+        onRulesChanged();
+      });
+      panel.appendChild(addBtn);
+
+      host.appendChild(panel);
+    });
+  }
+  function onRulesChanged() {
+    renderRuleBuilder();
+    renderAll();
+  }
+  renderRuleBuilder();
+
+  // ---------------------------------------------------------------
+  // Collapse engine. A single wfc session is advanced one sub-step
+  // at a time by advanceWfc(); Step calls it once per click, Complete
+  // calls it in a loop, and either can resume a session the other
+  // paused. Exactly two checkpoints pause per cell:
+  //   needPick    -> refreshDomains(), find the lowest-entropy
+  //                  cell(s), highlight every tie in yellow, PAUSE
+  //                  ("Lowest entropy...")
+  //   needChoose  -> pick the winner among those ties, drop the
+  //                  highlight from the losers so only the winner
+  //                  stays marked, PAUSE ("Brushpoint chosen...")
+  // Collapsing the winner and moving on to the next cell's needPick
+  // happens silently in between — it is not its own checkpoint.
+  // ---------------------------------------------------------------
+  const stepBtn = document.getElementById('step');
+  const completeBtn = document.getElementById('complete');
+  const resetBtn = document.getElementById('reset');
+  const seedInput = document.getElementById('seed');
+
+  function setStatus(msg) { document.getElementById('status').textContent = msg; }
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function initWfc() {
+    const remaining = [];
+    for (let i = 0; i < TOTAL; i++) if (cells[i] === null) remaining.push(i);
+    return {
+      remaining,
+      rng: makeRng(seedInput.value),
+      phase: 'needPick',
+      selected: null,
+      candidates: [],
+      brush: []
+    };
+  }
+
+  function finishWfc() {
+    refreshDomains();
+    renderCells();
+    if (supplyMode !== 'inf') renderWeights();
+    setStatus('Collapse complete — constraints satisfied.');
+    wfc = null;
+  }
+
+  // Advances until the next checkpoint (or completion). Returns
+  // 'done' or 'waiting'. Internally loops so the silent collapse
+  // step never returns control on its own.
+  function advanceWfc() {
+    if (!wfc) wfc = initWfc();
+
+    while (true) {
+      if (wfc.remaining.length === 0) { finishWfc(); return 'done'; }
+
+      if (wfc.phase === 'needPick') {
+        refreshDomains();
+        renderCells();
+        if (supplyMode !== 'inf') renderWeights();
+
+        const before = wfc.remaining.length;
+        wfc.remaining = wfc.remaining.filter(i => domains[i].length > 0);
+        const stuck = before - wfc.remaining.length;
+        if (wfc.remaining.length === 0) { finishWfc(); return 'done'; }
+
+        const entropies = wfc.remaining.map(i => shannonEntropy(domains[i]));
+        const minH = Math.min(...entropies);
+        const EPS = 1e-9;
+        const candidatePositions = [];
+        entropies.forEach((h, pos) => { if (Math.abs(h - minH) < EPS) candidatePositions.push(pos); });
+
+        wfc.candidates = candidatePositions.map(pos => wfc.remaining[pos]);
+        wfc.candidates.forEach(i => els[i].classList.add('candidate'));
+
+        wfc.phase = 'needChoose';
+        setStatus(
+          'Lowest entropy ' + minH.toFixed(3) + ' bits — ' +
+          wfc.candidates.length + (wfc.candidates.length === 1 ? ' candidate' : ' tied candidates') +
+          ' highlighted' + (stuck > 0 ? ' (' + stuck + ' cell(s) have no valid color and will stay black)' : '') + '.'
+        );
+        return 'waiting';
+      }
+
+      if (wfc.phase === 'needChoose') {
+        // pick the winner among the tied candidates (consuming the rng
+        // here keeps Step and Complete perfectly interchangeable)
+        let winner = wfc.candidates[0];
+        let bestDraw = wfc.rng();
+        for (let k = 1; k < wfc.candidates.length; k++) {
+          const draw = wfc.rng();
+          if (draw < bestDraw) { bestDraw = draw; winner = wfc.candidates[k]; }
+        }
+        wfc.candidates.forEach(i => els[i].classList.remove('candidate'));
+
+        // Symmetry: build the "brush" — the winner plus every extra
+        // point symmetryPointSpecs() defines for the current mode,
+        // skipping any that land off-canvas, land back on a point
+        // already in the brush (on an axis/center), or aren't an
+        // active (uncollapsed, not already stuck) cell.
+        const brush = [{ index: winner, rule: null }];
+        const seen = new Set([winner]);
+        symmetryPointSpecs(symmetryMode).forEach(spec => {
+          const target = spec.pos(winner);
+          if (target === null || target === undefined) return; // off-canvas
+          if (seen.has(target)) return; // coincides with a point already in the brush
+          if (!wfc.remaining.includes(target)) return; // not an active cell
+          seen.add(target);
+          brush.push({ index: target, rule: spec.rule });
+        });
+        brush.forEach(b => els[b.index].classList.add('candidate'));
+
+        wfc.selected = winner;
+        wfc.brush = brush;
+
+        wfc.phase = 'needCollapse';
+        setStatus(
+          'Brushpoint chosen' + (brush.length > 1 ? ' (+' + (brush.length - 1) + ' symmetric partner' + (brush.length > 2 ? 's' : '') + ')' : '') +
+          ' — click Step to collapse it, or Complete to finish.'
+        );
+        return 'waiting';
+      }
+
+      if (wfc.phase === 'needCollapse') {
+        const brush = wfc.brush;
+        brush.forEach(b => els[b.index].classList.remove('candidate'));
+
+        // Each brush point's own current domain: the primary point
+        // already has a known one; every other point gets its own
+        // fresh check — pattern-transformed per its own `rule` (see
+        // symmetryPointSpecs) under a *-reflect mode, or plain
+        // otherwise.
+        const pointDomains = brush.map((b, k) => (k === 0 ? domains[b.index] : computeDomain(b.index, b.rule)));
+
+        // Ditto: the brush must agree on ONE shared color, so only
+        // colors valid for EVERY point survive. Free: each point only
+        // needs its own domain to be non-empty, and gets its own
+        // independent pick. Either way, if any point in the brush
+        // can't be painted at all, none of the brush is painted — it
+        // drops out of the remaining pool and stays black, same as
+        // any other cell with no valid color.
+        if (brushMode === 'ditto') {
+          const sharedDomain = pointDomains.reduce((acc, d) => acc.filter(c => d.includes(c)));
+          if (sharedDomain.length > 0) {
+            const chosen = weightedPick(sharedDomain, wfc.rng);
+            brush.forEach(b => { cells[b.index] = chosen; els[b.index].classList.add('settling'); });
+          }
+        } else {
+          if (pointDomains.every(d => d.length > 0)) {
+            brush.forEach((b, k) => {
+              cells[b.index] = weightedPick(pointDomains[k], wfc.rng);
+              els[b.index].classList.add('settling');
+            });
+          }
+        }
+        // whether painted or skipped as impossible, the brush is done with
+        const brushIndexes = new Set(brush.map(b => b.index));
+        wfc.remaining = wfc.remaining.filter(i => !brushIndexes.has(i));
+
+        wfc.selected = null;
+        wfc.brush = [];
+        wfc.phase = 'needPick';
+        continue; // silent — falls straight into the next cell's needPick, no pause here
+      }
+    }
+  }
+
+  // Complete is interruptible: clicking Step while it's running
+  // doesn't fight over advanceWfc() with the running loop — it just
+  // raises a flag the loop checks after finishing its current
+  // sub-step, so the run stops cleanly at the next checkpoint rather
+  // than mid-step.
+  let collapseRunning = false;
+  let interruptRequested = false;
+
+  stepBtn.addEventListener('click', () => {
+    if (collapseRunning) {
+      interruptRequested = true;
+      setStatus('Stopping after the next step…');
+      return;
+    }
+    if (wfc === null && cells.every(c => c !== null)) {
+      setStatus('Nothing to collapse — grid already fully set.');
+      return;
+    }
+    advanceWfc();
+  });
+
+  async function runCollapse() {
+    if (collapseRunning) return;
+    if (wfc === null && cells.every(c => c !== null)) {
+      setStatus('Nothing to collapse — grid already fully set.');
+      return;
+    }
+    collapseRunning = true;
+    interruptRequested = false;
+    completeBtn.disabled = true;
+    resetBtn.disabled = true;
+    // stepBtn stays enabled deliberately — it's how Complete gets interrupted
+
+    let result = 'waiting';
+    while (result !== 'done') {
+      result = advanceWfc();
+      await sleep(12);
+      if (interruptRequested) break;
+    }
+
+    collapseRunning = false;
+    completeBtn.disabled = false;
+    resetBtn.disabled = false;
+    if (result !== 'done') setStatus('Complete interrupted. Click Step to continue, or Complete to resume.');
+  }
+
+  completeBtn.addEventListener('click', runCollapse);
+
+  // ---------------------------------------------------------------
+  // Export / Import — the full board+ruleset as a JSON file. Rules
+  // are written in the compact "pattern-string -> result-codes" form
+  // used throughout this chat (result-codes comma-joined for rules
+  // that demand/forbid more than one color).
+  // ---------------------------------------------------------------
+  function parseResultsCompact(str) {
+    const results = {};
+    if (!str) return results;
+    String(str).split(',').map(s => s.trim()).filter(Boolean).forEach(code => {
+      const isForbid = code[0] === 'n' && code.length > 1 && CODE_TO_COLOR[code.slice(1)];
+      const base = isForbid ? code.slice(1) : code;
+      const colorName = CODE_TO_COLOR[base];
+      if (colorName) results[colorName] = isForbid ? 'forbid' : 'demand';
+    });
+    return results;
+  }
+  function exportRulesCompact() {
+    const out = {};
+    [...COLORS, 'x'].forEach(kind => {
+      out[kind] = {};
+      (CONSTRAINTS.rules[kind] || []).forEach(rule => {
+        out[kind][rule.pattern.join('/')] = resultsToCompact(rule.results);
+      });
+    });
+    return out;
+  }
+  function importRulesCompact(compact) {
+    const rules = {};
+    Object.keys(compact || {}).forEach(kind => {
+      rules[kind] = Object.keys(compact[kind] || {}).map(patternStr => ({
+        pattern: patternStr.split('/'),
+        results: parseResultsCompact(compact[kind][patternStr])
+      }));
+    });
+    return rules;
+  }
+
+  // Shared by Export (includes the board) and Share (deliberately
+  // does not — Share is "UI choices + rules" only, never grid state).
+  function buildStateSnapshot(includeCells) {
+    const data = {
+      seed: seedInput.value,
+      board: { width: W, height: H },
+      colors: COLORS.map(name => ({ name, code: CODE[name] })),
+      weights: Object.assign({}, CONSTRAINTS.weights),
+      supply: supplyMode,
+      symmetry: symmetryMode,
+      brush: brushMode,
+      rules: exportRulesCompact()
+    };
+    if (includeCells) data.cells = cells.slice();
+    return data;
+  }
+
+  document.getElementById('export').addEventListener('click', () => {
+    const data = buildStateSnapshot(true);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'worldcrumpler-' + (seedInput.value || 'export') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus('Exported.');
+  });
+
+  // ---------------------------------------------------------------
+  // Share — encodes UI choices + rules (NOT the current grid) into a
+  // URL's `share` query param, UTF-8-safe base64. Arriving at a page
+  // with that param populates the UI from it and starts Complete
+  // automatically, with no grid state to restore (reusing
+  // applyImportedState — omitting `cells` already makes it start
+  // from an empty board on its own).
+  // ---------------------------------------------------------------
+  function base64EncodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function base64DecodeUtf8(str) { return decodeURIComponent(escape(atob(str))); }
+
+  function buildShareUrl() {
+    const encoded = base64EncodeUtf8(JSON.stringify(buildStateSnapshot(false)));
+    const url = new URL(window.location.href);
+    url.searchParams.set('share', encoded);
+    return url.toString();
+  }
+
+  document.getElementById('share').addEventListener('click', () => {
+    const url = buildShareUrl();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => setStatus('Share link copied to clipboard.'),
+        () => { window.prompt('Copy this share link:', url); setStatus('Share link ready.'); }
+      );
+    } else {
+      window.prompt('Copy this share link:', url);
+      setStatus('Share link ready.');
+    }
+  });
+
+  function loadFromShareLinkIfPresent() {
+    const encoded = new URLSearchParams(window.location.search).get('share');
+    if (!encoded) return;
+    try {
+      const data = JSON.parse(base64DecodeUtf8(encoded));
+      applyImportedState(data); // no `cells` in a share payload — starts from an empty board
+      setStatus('Loaded shared configuration — starting automatically.');
+      runCollapse();
+    } catch (err) {
+      setStatus('Could not load shared link: ' + err.message);
+    }
+  }
+
+  function applyImportedState(data) {
+    if (!data || !Array.isArray(data.colors) || !data.board) throw new Error('not a World Crumpler export');
+
+    COLORS = data.colors.map(c => c.name);
+    CODE = {}; CODE_TO_COLOR = {};
+    data.colors.forEach(c => { CODE[c.name] = c.code; CODE_TO_COLOR[c.code] = c.name; });
+
+    CONSTRAINTS.weights = Object.assign({}, data.weights);
+    CONSTRAINTS.rules = importRulesCompact(data.rules);
+    COLORS.forEach(c => { if (!CONSTRAINTS.rules[c]) CONSTRAINTS.rules[c] = []; });
+    if (!CONSTRAINTS.rules.x) CONSTRAINTS.rules.x = [];
+
+    supplyMode = SUPPLY_BUTTON_IDS[data.supply] ? data.supply : 'inf'; // fall back for pre-supply export files
+    updateSupplyButtons();
+
+    symmetryMode = SYMMETRY_BUTTON_IDS[data.symmetry] ? data.symmetry : 'none'; // fall back for pre-symmetry export files
+    updateSymmetryButtons();
+
+    brushMode = BRUSH_MODE_BUTTON_IDS[data.brush] ? data.brush : 'ditto'; // fall back for pre-brush-mode export files
+    updateBrushModeButtons();
+
+    W = data.board.width; H = data.board.height; TOTAL = W * H;
+    cells = (data.cells && data.cells.length === TOTAL) ? data.cells.slice() : new Array(TOTAL).fill(null);
+    domains = new Array(TOTAL).fill(null);
+    wfc = null;
+
+    seedInput.value = data.seed || '';
+    widthInput.value = W; heightInput.value = H;
+
+    buildGrid();
+    renderWeights();
+    renderRuleBuilder();
+    renderAll();
+    setStatus('Imported board.');
+  }
+
+  const importFileInput = document.getElementById('import-file');
+  document.getElementById('import').addEventListener('click', () => importFileInput.click());
+  importFileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        applyImportedState(JSON.parse(reader.result));
+      } catch (err) {
+        setStatus('Import failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    importFileInput.value = '';
+  });
+
+  // ---------------------------------------------------------------
+  // PRESETS — each key is a full World Crumpler export object (same
+  // shape "Export JSON" produces / "Import JSON" accepts), embedded
+  // directly in the page and loaded with one click. Replace each
+  // block below with the real preset's exported JSON — export a
+  // board you've configured, open the .json file, and paste its
+  // contents in place of the placeholder object. All three currently
+  // hold the same placeholder (from wavegrid-test.json) as a
+  // template; swap them independently.
+  // ---------------------------------------------------------------
+  const PRESETS = {
+    flowers: {
+    "seed": "flowers",
+    "board": {
+      "width": 18,
+      "height": 22
+    },
+    "colors": [
+      {
+        "name": "green",
+        "code": "G"
+      },
+      {
+        "name": "lightgrey",
+        "code": "LIG"
+      },
+      {
+        "name": "silver",
+        "code": "SIL"
+      },
+      {
+        "name": "springgreen",
+        "code": "SPR"
+      },
+      {
+        "name": "dimgray",
+        "code": "DIM"
+      },
+      {
+        "name": "seashell",
+        "code": "SEA"
+      },
+      {
+        "name": "hotpink",
+        "code": "HOT"
+      }
+    ],
+    "weights": {
+      "green": 23,
+      "lightgrey": 43,
+      "silver": 40,
+      "springgreen": 20,
+      "dimgray": 52,
+      "seashell": 20,
+      "hotpink": 10
+    },
+    "supply": "inf",
+    "symmetry": "180reflect",
+    "brush": "ditto",
+    "rules": {
+      "green": {
+        "?/x/?/?/?/?/?/?": "nHOT"
+      },
+      "lightgrey": {
+        "?/x/?/?/?/?/?/?": "nHOT"
+      },
+      "silver": {
+        "?/x/?/?/?/?/?/?": "nHOT"
+      },
+      "springgreen": {},
+      "dimgray": {
+        "?/x/?/?/?/?/?/?": "nHOT"
+      },
+      "seashell": {
+        "?/x/?/?/?/?/G/?": "HOT",
+        "?/x/?/?/?/?/eSPR/?": "HOT",
+        "?/?/?/HOT/x/?/?/?": "DIM",
+        "?/?/?/x/eHOT/?/?/?": "DIM",
+        "?/x/?/eHOT/?/?/?/?": "DIM",
+        "?/?/?/eHOT/?/?/x/?": "LIG,SIL,DIM",
+        "?/x/?/?/eHOT/?/?/?": "DIM",
+        "?/?/?/?/eHOT/?/x/?": "LIG,SIL,DIM"
+      },
+      "hotpink": {
+        "?/x/?/?/?/?/?/?": "SEA",
+        "?/?/?/?/x/?/?/?": "SEA",
+        "?/?/?/?/?/?/x/?": "SEA",
+        "?/?/?/x/?/?/?/?": "SEA"
+      },
+      "x": {
+        "?/?/?/?/?/?/G/?": "SPR,G,SEA",
+        "?/?/?/?/?/?/eSPR/?": "G,SPR,nSEA",
+        "?/?/?/?/eSEA/?/G/?": "G",
+        "?/?/?/eSEA/?/?/G/?": "G",
+        "?/?/G/?/G/?/?/?": "DIM,SIL,LIG",
+        "G/?/?/G/?/?/?/?": "LIG,SIL,DIM"
+      }
+    }
+  },
+    seashores: {
+      "seed": "seashores",
+      "board": {
+        "width": 24,
+        "height": 22
+      },
+      "colors": [
+        {
+          "name": "green",
+          "code": "G"
+        },
+        {
+          "name": "blue",
+          "code": "B"
+        },
+        {
+          "name": "mediumblue",
+          "code": "MED"
+        },
+        {
+          "name": "lightgrey",
+          "code": "LIG"
+        },
+        {
+          "name": "lightpink",
+          "code": "LIGH"
+        },
+        {
+          "name": "lightsalmon",
+          "code": "LIGHT"
+        },
+        {
+          "name": "silver",
+          "code": "SIL"
+        },
+        {
+          "name": "springgreen",
+          "code": "SPR"
+        },
+        {
+          "name": "navy",
+          "code": "NAV"
+        },
+        {
+          "name": "dimgray",
+          "code": "DIM"
+        }
+      ],
+      "weights": {
+        "green": 23,
+        "blue": 17,
+        "mediumblue": 20,
+        "lightgrey": 20,
+        "lightpink": 20,
+        "lightsalmon": 20,
+        "silver": 20,
+        "springgreen": 20,
+        "navy": 20,
+        "dimgray": 20
+      },
+      "supply": "inf",
+      "rules": {
+        "green": {},
+        "blue": {
+          "?/x/?/?/?/?/?/?": "LIGH,LIGHT",
+          "?/?/x/?/?/?/?/?": "LIGH,LIGHT",
+          "x/?/?/?/?/?/?/?": "LIGH,LIGHT"
+        },
+        "mediumblue": {
+          "?/?/?/?/?/?/x/?": "MED,NAV",
+          "?/x/?/?/?/?/?/?": "B,MED",
+          "?/?/?/?/x/?/?/?": "MED,B,SPR",
+          "?/?/?/x/?/?/?/?": "B,MED,NAV",
+          "?/eMED/?/?/?/?/x/?": "NAV",
+          "?/?/eMED/?/?/?/x/?": "NAV"
+        },
+        "lightgrey": {},
+        "lightpink": {},
+        "lightsalmon": {
+          "?/?/?/?/?/?/x/?": "LIGHT,B,nMED,nNAV",
+          "?/x/?/?/?/?/?/?": "nMED,nB,nNAV",
+          "?/?/?/?/x/?/?/?": "LIGH,LIGHT,nMED,nNAV",
+          "?/?/?/x/?/?/?/?": "nMED,nNAV,LIGHT,LIGH"
+        },
+        "silver": {},
+        "springgreen": {},
+        "navy": {
+          "?/?/?/?/?/?/x/?": "NAV",
+          "?/?/?/?/?/?/?/x": "NAV",
+          "?/?/?/?/?/x/?/?": "NAV",
+          "?/x/?/?/?/?/?/?": "MED,NAV",
+          "?/?/x/?/?/?/?/?": "MED,B,NAV",
+          "x/?/?/?/?/?/?/?": "MED,B,NAV"
+        },
+        "dimgray": {},
+        "x": {
+          "?/?/?/?/?/G/G/G": "nMED,nNAV,nB",
+          "?/?/?/?/?/LIG/LIG/LIG": "nNAV,nMED"
+        }
+      },
+      "cells": [],
+    },
+    dungeon: {
+      "seed": "dungeon",
+      "board": {
+        "width": 24,
+        "height": 22
+      },
+      "colors": [
+        {
+          "name": "green",
+          "code": "G"
+        },
+        {
+          "name": "navy",
+          "code": "NAV"
+        },
+        {
+          "name": "lightpink",
+          "code": "LIGH"
+        },
+        {
+          "name": "tan",
+          "code": "TAN"
+        },
+        {
+          "name": "indigo",
+          "code": "IND"
+        }
+      ],
+      "weights": {
+        "green": 1,
+        "navy": 45,
+        "lightpink": 10,
+        "tan": 33,
+        "indigo": 46
+      },
+      "supply": "200",
+      "symmetry": "90",
+      "brush": "free",
+      "rules": {
+        "green": {},
+        "navy": {},
+        "lightpink": {
+          "?/eTAN/?/nTAN/x/?/nTAN/?": "TAN",
+          "?/eTAN/?/x/nTAN/?/nTAN/?": "TAN",
+          "?/eTAN/?/nTAN/nTAN/?/x/?": "IND,TAN",
+          "?/x/?/eTAN/nTAN/?/nTAN/?": "TAN",
+          "?/nTAN/?/eTAN/nTAN/?/x/?": "TAN",
+          "?/nTAN/?/nTAN/eTAN/?/x/?": "TAN",
+          "?/x/?/nTAN/eTAN/?/nTAN/?": "TAN"
+        },
+        "tan": {
+          "?/eTAN/?/?/?/?/x/?": "TAN,LIGH",
+          "?/?/?/x/eTAN/?/?/?": "LIGH,TAN",
+          "?/x/?/?/?/?/eTAN/?": "LIGH,TAN",
+          "?/?/?/eTAN/x/?/?/?": "TAN,LIGH",
+          "?/eTAN/?/?/x/?/eTAN/?": "nTAN,nLIGH",
+          "?/eTAN/?/x/?/?/eTAN/?": "nLIGH,nTAN",
+          "?/x/?/eTAN/eTAN/?/?/?": "nLIGH,nTAN",
+          "?/?/?/eTAN/eTAN/?/x/?": "nLIGH,nTAN",
+          "nTAN/nTAN/nTAN/nTAN/nTAN/?/x/?": "TAN",
+          "?/nTAN/nTAN/x/nTAN/?/nTAN/nTAN": "TAN",
+          "?/x/?/nTAN/nTAN/nTAN/nTAN/nTAN": "TAN",
+          "nTAN/nTAN/?/nTAN/x/nTAN/nTAN/?": "TAN"
+        },
+        "indigo": {},
+        "x": {
+          "?/eIND/?/?/?/?/eIND/?": "IND",
+          "?/?/?/eIND/eIND/?/?/?": "IND",
+          "eIND/?/?/?/?/?/?/eIND": "IND",
+          "?/?/eIND/?/?/eIND/?/?": "IND"
+        }
+      }
+    }
+  };
+  function loadPreset(name) {
+    try {
+      applyImportedState(PRESETS[name]);
+      setStatus('Loaded preset: ' + name + '.');
+    } catch (err) {
+      setStatus('Preset failed: ' + err.message);
+    }
+  }
+  document.getElementById('preset-flowers').addEventListener('click', () => loadPreset('flowers'));
+  document.getElementById('preset-seashores').addEventListener('click', () => loadPreset('seashores'));
+  document.getElementById('preset-dungeon').addEventListener('click', () => loadPreset('dungeon'));
+
+  renderAll();
+  loadFromShareLinkIfPresent(); // may override the default board above and auto-start Complete
+</script>
+
+<script>
+  // ---------------------------------------------------------------
+  // Optional companion scripts, loaded last so the rest of the page
+  // has already rendered by the time these run. Each is entirely
+  // optional — if the file isn't there, the fetch just fails and
+  // nothing happens. If a file IS reachable, it's expected to
+  // synchronously call back into window.WorldCrumpler.registerGallery
+  // / .registerTests while it executes.
+  //
+  // Gallery items are { title, body } text cards:
+  //   window.WorldCrumpler.registerGallery([
+  //     { title: 'Misty Hollow', body: 'A 24x24 forest generation.' }
+  //   ]);
+  //
+  // Test items are richer — each is a full test case:
+  //   {
+  //     name: 'West-Blue Forbid',       // card title
+  //     description: 'optional blurb',  // card body text
+  //     config: { ... },                // Export JSON shape, no `cells`
+  //                                      // (same shape buildStateSnapshot(false)
+  //                                      // / the Share button produces)
+  //     expected: [ 'red', null, ... ]  // the deterministic result of
+  //                                      // running Complete on `config` —
+  //                                      // length must be config.board.width
+  //                                      // * config.board.height
+  //   }
+  // Each test card shows `expected` as a small colored grid preview.
+  // Clicking a card builds a share URL from `config` (same encoding
+  // the Share button uses) and navigates the current window to it —
+  // reusing the page's existing share-link auto-run on load, so the
+  // test launches and runs exactly like a shared link would.
+  // ---------------------------------------------------------------
+  window.WorldCrumpler = window.WorldCrumpler || {};
+
+  function wcColorCss(name) {
+    return (name === 'red' || name === 'green' || name === 'blue') ? 'var(--' + name + ')' : (name || '#0a0a0c');
+  }
+  function wcBase64EncodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function wcShareUrlFromConfig(config) {
+    const encoded = wcBase64EncodeUtf8(JSON.stringify(config));
+    const url = new URL(window.location.href);
+    url.searchParams.set('share', encoded);
+    return url.toString();
+  }
+
+  function renderCardSection(title, sectionId, items) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    const wrap = document.querySelector('.wrap');
+    if (!wrap) return;
+
+    const section = document.createElement('div');
+    section.className = 'ext-section';
+    section.id = sectionId;
+
+    const h2 = document.createElement('h2');
+    h2.className = 'ext-section-title';
+    h2.textContent = title;
+    section.appendChild(h2);
+
+    const grid = document.createElement('div');
+    grid.className = 'ext-card-grid';
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'ext-card';
+      const t = document.createElement('div');
+      t.className = 'ext-card-title';
+      t.textContent = (item && item.title) || '';
+      card.appendChild(t);
+      if (item && item.body) {
+        const b = document.createElement('div');
+        b.className = 'ext-card-body';
+        b.textContent = item.body;
+        card.appendChild(b);
+      }
+      grid.appendChild(card);
+    });
+    section.appendChild(grid);
+    wrap.appendChild(section);
+  }
+
+  function renderTestsSection(items) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    const wrap = document.querySelector('.wrap');
+    if (!wrap) return;
+
+    const section = document.createElement('div');
+    section.className = 'ext-section';
+    section.id = 'wc-tests-section';
+
+    const h2 = document.createElement('h2');
+    h2.className = 'ext-section-title';
+    h2.textContent = 'Tests';
+    section.appendChild(h2);
+
+    const grid = document.createElement('div');
+    grid.className = 'ext-card-grid';
+
+    items.forEach(item => {
+      if (!item || !item.config || !item.config.board) return;
+      const card = document.createElement('div');
+      card.className = 'ext-card ext-test-card';
+      card.title = 'Click to launch this test in this window';
+
+      const t = document.createElement('div');
+      t.className = 'ext-card-title';
+      t.textContent = item.name || 'Untitled test';
+      card.appendChild(t);
+
+      if (item.description) {
+        const d = document.createElement('div');
+        d.className = 'ext-card-body';
+        d.textContent = item.description;
+        card.appendChild(d);
+      }
+
+      if (Array.isArray(item.expected)) {
+        const bw = item.config.board.width, bh = item.config.board.height;
+        const preview = document.createElement('div');
+        preview.className = 'ext-test-preview';
+        preview.style.gridTemplateColumns = 'repeat(' + bw + ', 1fr)';
+        preview.style.aspectRatio = bw + ' / ' + bh;
+        item.expected.forEach(color => {
+          const cell = document.createElement('div');
+          cell.className = 'ext-test-cell';
+          cell.style.background = wcColorCss(color);
+          preview.appendChild(cell);
+        });
+        card.appendChild(preview);
+      }
+
+      card.addEventListener('click', () => {
+        window.location.href = wcShareUrlFromConfig(item.config);
+      });
+
+      grid.appendChild(card);
+    });
+
+    section.appendChild(grid);
+    wrap.appendChild(section);
+  }
+
+  window.WorldCrumpler.registerGallery = function (items) { renderCardSection('Gallery', 'wc-gallery-section', items); };
+  window.WorldCrumpler.registerTests = function (items) { renderTestsSection(items); };
+
+  function tryLoadOptionalScript(url) {
+    fetch(url)
+      .then(res => (res.ok ? res.text() : null))
+      .then(text => { if (text) new Function(text)(); })
+      .catch(() => { /* not reachable — fail silently, by design */ });
+  }
+
+  tryLoadOptionalScript('world_crumpler_gallery.js');
+  tryLoadOptionalScript('world_crumpler_tests.js');
+</script>
+</body>
+</html>

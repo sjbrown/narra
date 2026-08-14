@@ -1,0 +1,73 @@
+{
+  "seed": "dungeon",
+  "board": {
+    "width": 24,
+    "height": 22
+  },
+  "colors": [
+    {
+      "name": "green",
+      "code": "G"
+    },
+    {
+      "name": "darkslategray",
+      "code": "DAR"
+    },
+    {
+      "name": "lightpink",
+      "code": "LIGH"
+    },
+    {
+      "name": "tan",
+      "code": "TAN"
+    },
+    {
+      "name": "indigo",
+      "code": "IND"
+    }
+  ],
+  "weights": {
+    "green": 1,
+    "darkslategray": 45,
+    "lightpink": 10,
+    "tan": 33,
+    "indigo": 46
+  },
+  "supply": "200",
+  "symmetry": "90",
+  "brush": "free",
+  "rules": {
+    "green": {},
+    "darkslategray": {},
+    "lightpink": {
+      "?/eTAN/?/nTAN/x/?/nTAN/?": "TAN",
+      "?/eTAN/?/x/nTAN/?/nTAN/?": "TAN",
+      "?/eTAN/?/nTAN/nTAN/?/x/?": "IND,TAN",
+      "?/x/?/eTAN/nTAN/?/nTAN/?": "TAN",
+      "?/nTAN/?/eTAN/nTAN/?/x/?": "TAN",
+      "?/nTAN/?/nTAN/eTAN/?/x/?": "TAN",
+      "?/x/?/nTAN/eTAN/?/nTAN/?": "TAN"
+    },
+    "tan": {
+      "?/eTAN/?/?/?/?/x/?": "TAN,LIGH",
+      "?/?/?/x/eTAN/?/?/?": "LIGH,TAN",
+      "?/x/?/?/?/?/eTAN/?": "LIGH,TAN",
+      "?/?/?/eTAN/x/?/?/?": "TAN,LIGH",
+      "?/eTAN/?/?/x/?/eTAN/?": "nTAN,nLIGH",
+      "?/eTAN/?/x/?/?/eTAN/?": "nLIGH,nTAN",
+      "?/x/?/eTAN/eTAN/?/?/?": "nLIGH,nTAN",
+      "?/?/?/eTAN/eTAN/?/x/?": "nLIGH,nTAN",
+      "nTAN/nTAN/nTAN/nTAN/nTAN/?/x/?": "TAN",
+      "?/nTAN/nTAN/x/nTAN/?/nTAN/nTAN": "TAN",
+      "?/x/?/nTAN/nTAN/nTAN/nTAN/nTAN": "TAN",
+      "nTAN/nTAN/?/nTAN/x/nTAN/nTAN/?": "TAN"
+    },
+    "indigo": {},
+    "x": {
+      "?/eIND/?/?/?/?/eIND/?": "IND",
+      "?/?/?/eIND/eIND/?/?/?": "IND",
+      "eIND/?/?/?/?/?/?/eIND": "IND",
+      "?/?/eIND/?/?/eIND/?/?": "IND"
+    }
+  }
+}
