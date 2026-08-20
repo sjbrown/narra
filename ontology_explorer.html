@@ -91,6 +91,39 @@ let collapsed = new Set();
 let editorOpen = false;
 let nodePositions = {};
 
+const STORAGE_KEY = "ontologyExplorerState";
+
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      nodes, edges, nodePositions, selected, filter, collapsed: [...collapsed]
+    }));
+  }catch(err){
+    console.warn("Could not save ontology state to localStorage:", err);
+  }
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data.nodes || !data.edges) return false;
+    loadOntologyData(data);
+    if(data.filter){
+      filter = data.filter;
+      document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active", b.dataset.filter===filter));
+    }
+    if(Array.isArray(data.collapsed)) collapsed = new Set(data.collapsed);
+    if(data.selected && nodeMap[data.selected]) select(data.selected);
+    renderGraph();
+    return true;
+  }catch(err){
+    console.warn("Could not load ontology state from localStorage:", err);
+    return false;
+  }
+}
+
 const relationPatterns = [
   [/^(?:is\s+an?|is\s+the)\s+(.+)$/i, "is_a"],
   [/^(?:is\s+one\s+of\s+the)\s+(.+)$/i, "is_a"],
@@ -240,8 +273,9 @@ function select(id){
    document.getElementById("inspector").innerHTML=`<div class="empty">Click an entity in the tree or graph.</div>`;
    document.getElementById("status").textContent=`Select a node to inspect it.`;
  }
- renderGraph(); 
+ renderGraph();
  renderTree();
+ saveState();
 }
 function related(n){
  return edges.filter(e=>e[0]===n.id||e[1]===n.id).map(([a,b,t])=>{
@@ -286,12 +320,13 @@ function renderInspector(n){
 
 function updateCounts(){
   document.getElementById("counts").textContent = `${nodes.length} nodes · ${edges.length} relationships`;
+  saveState();
 }
 
 document.getElementById("search").addEventListener("input",e=>{query=e.target.value.trim();renderGraph();});
 document.querySelectorAll(".filter").forEach(b=>b.onclick=()=>{
  document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");
- filter=b.dataset.filter;renderGraph();
+ filter=b.dataset.filter;renderGraph();saveState();
 });
 document.getElementById("reset").onclick=()=>{
   editorOpen=false;query="";document.getElementById("search").value="";filter="all";
@@ -413,6 +448,7 @@ document.getElementById("fit").onclick = () => {
     simNodes.forEach(node => {
       nodePositions[node.id] = [node.x, node.y];
     });
+    saveState();
   }
 
   renderGraph();
@@ -428,20 +464,25 @@ document.getElementById("fit").onclick = () => {
 
 window.addEventListener("resize", renderGraph);
 
-// Attempt to fetch ontology.json on startup, fallback to base ontology on failure
-fetch("ontology.json")
-  .then(response => {
-    if (!response.ok) throw new Error("Failed to load ontology.json");
-    return response.json();
-  })
-  .then(data => {
-    loadOntologyData(data);
-    document.getElementById("status").textContent = "Loaded ontology.json successfully.";
-  })
-  .catch(err => {
-    initBaseOntology();
-    document.getElementById("status").textContent = "Started with base ontology (ontology.json not found).";
-  });
+// On startup, prefer a saved localStorage state; otherwise fetch ontology.json;
+// otherwise fall back to the base ontology.
+if (loadState()) {
+  document.getElementById("status").textContent = "Loaded saved state from this browser.";
+} else {
+  fetch("ontology.json")
+    .then(response => {
+      if (!response.ok) throw new Error("Failed to load ontology.json");
+      return response.json();
+    })
+    .then(data => {
+      loadOntologyData(data);
+      document.getElementById("status").textContent = "Loaded ontology.json successfully.";
+    })
+    .catch(err => {
+      initBaseOntology();
+      document.getElementById("status").textContent = "Started with base ontology (ontology.json not found).";
+    });
+}
 </script>
 </body>
 </html>
