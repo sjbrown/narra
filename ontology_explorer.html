@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ontology Explorer</title>
+<!-- Include D3.js for graph balancing/force simulation algorithms -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--panel:#151b23;--panel2:#10151c;--line:#2b3440;--text:#e6edf3;
+  --muted:#8b949e;--accent:#58a6ff;--green:#7ee787;--gold:#d29922;--red:#ff7b72;
+  --node:#1f6feb;--node2:#238636;--shadow:0 12px 35px rgba(0,0,0,.28)
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input{font:inherit}.app{height:100vh;display:grid;grid-template-rows:62px 1fr;overflow:hidden}
+header{display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--line);background:#11161d}
+.brand{font-weight:750;font-size:18px;white-space:nowrap}.brand span{color:var(--green)}
+.search{flex:1;max-width:560px;position:relative}.search input{width:100%;padding:10px 13px 10px 38px;background:#0d1117;border:1px solid var(--line);border-radius:8px;color:var(--text);outline:none}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 2px #1f6feb33}.search:before{content:"⌕";position:absolute;left:13px;top:8px;color:var(--muted);font-size:19px}
+.legend{margin-left:auto;display:flex;gap:12px;color:var(--muted);font-size:12px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.layout{min-height:0;display:grid;grid-template-columns:270px 1fr 285px}
+aside,.inspector{background:var(--panel);min-height:0;overflow:auto}.tree{border-right:1px solid var(--line)}.inspector{border-left:1px solid var(--line)}
+.section-head{height:49px;padding:14px 16px;border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.tree-body{padding:12px 10px}.tree ul{list-style:none;margin:0;padding:0}.tree li{margin:2px 0}.tree-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer}.tree-row:hover{background:#212936}.tree-row.selected{background:#1f6feb33;color:#fff}.caret{width:14px;color:var(--muted);font-size:11px}.type-icon{width:20px;text-align:center}.children{margin-left:17px}.collapsed>.children{display:none}
+.tree-add-box{margin:4px 0 6px 20px;display:flex;gap:4px}.tree-add-box input{background:#0d1117;border:1px solid var(--line);border-radius:4px;color:var(--text);padding:3px 6px;font-size:12px;width:130px;outline:none}.tree-add-box input:focus{border-color:var(--accent)}.tree-add-box button{background:#238636;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer}.tree-add-box button:hover{background:#2ea043}
+.main{min-width:0;min-height:0;display:grid;grid-template-rows:49px 1fr 42px;background:#0b1016}
+.toolbar{display:flex;align-items:center;gap:7px;padding:0 13px;border-bottom:1px solid var(--line);background:#10151c}
+.toolbar button{border:1px solid var(--line);background:#161d26;color:#c9d1d9;border-radius:6px;padding:6px 10px;cursor:pointer}.toolbar button:hover{border-color:#596777}.toolbar button.active{background:#1f6feb33;border-color:#388bfd;color:#fff}
+.graph-wrap{position:relative;overflow:hidden}.graph-wrap svg{width:100%;height:100%;display:block}
+.edge{stroke:#596777;stroke-width:1.5;fill:none;opacity:.8}.edge.highlight{stroke:var(--accent);stroke-width:2.8;opacity:1}
+.edge-label{fill:#8b949e;font-size:11px;pointer-events:none}.node{cursor:pointer}.node circle{stroke:#0b1016;stroke-width:3}.node text{fill:#e6edf3;font-size:12px;font-weight:600;pointer-events:none;text-anchor:middle}.node.dim{opacity:.18}.node.selected circle{stroke:#fff;stroke-width:3}.node.selected text{fill:#fff}
+.status{border-top:1px solid var(--line);padding:10px 14px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between}
+.inspector-body{padding:16px}.entity-title{font-size:22px;font-weight:750;margin:0 0 4px}.entity-kind{color:var(--muted);margin-bottom:16px}.badge{display:inline-block;border:1px solid var(--line);padding:3px 7px;border-radius:999px;font-size:11px;color:#c9d1d9;margin:0 4px 5px 0}
+h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:20px 0 8px}.prop{display:grid;grid-template-columns:88px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid #212833}.prop b{color:#8b949e;font-weight:600}.rel{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:7px 8px;background:#10151c;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;cursor:pointer}.rel:hover{border-color:#596777}.rel .rtype{color:#8b949e;font-size:11px}.source{display:block;margin-top:18px;color:var(--accent);font-size:12px;text-decoration:none}.source:hover{text-decoration:underline}
+.empty{color:var(--muted);padding:30px 5px;text-align:center}
+@media(max-width:900px){.layout{grid-template-columns:220px 1fr}.inspector{display:none}.legend{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand">⛏ Ontology Explorer</div>
+  <div class="search"><input id="search" placeholder="Search entities, types, relationships…" autocomplete="off"></div>
+  <div class="legend">
+    <span><i class="dot" style="background:#238636"></i>Type</span>
+    <span><i class="dot" style="background:#1f6feb"></i>Entity</span>
+    <span><i class="dot" style="background:#d29922"></i>Material</span>
+  </div>
+</header>
+<div class="layout">
+  <aside class="tree">
+    <div class="section-head">Ontology</div>
+    <div class="tree-body" id="tree"></div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <button id="reset">Reset</button>
+      <button id="fit">Fit graph</button>
+      <button id="saveBtn">Save</button>
+      <button id="loadBtn">Load</button>
+      <input type="file" id="loadFileInput" accept=".json" style="display:none">
+      <button class="filter active" data-filter="all">All</button>
+      <button class="filter" data-filter="is_a">IS_A</button>
+      <button class="filter" data-filter="drops">DROPS</button>
+      <button class="filter" data-filter="crafted_from">CRAFTED_FROM</button>
+      <button class="filter" data-filter="variant_of">VARIANT_OF</button>
+    </div>
+    <div class="graph-wrap" id="graph"></div>
+    <div class="status"><span id="status">Select a node to inspect it.</span><span id="counts">0 nodes · 0 relationships</span></div>
+  </main>
+
+  <aside class="inspector">
+    <div class="section-head">Entity inspector</div>
+    <div class="inspector-body" id="inspector">
+      <div class="empty">Click an entity in the tree or graph.</div>
+    </div>
+  </aside>
+</div>
+</div>
+
+<script>
+let nodes = [];
+let edges = [];
+let nodeMap = {};
+let selected = null;
+let filter = "all";
+let query = "";
+let collapsed = new Set();
+let editorOpen = false;
+let nodePositions = {};
+
+const relationPatterns = [
+  [/^(?:is\s+an?|is\s+the)\s+(.+)$/i, "is_a"],
+  [/^(?:is\s+one\s+of\s+the)\s+(.+)$/i, "is_a"],
+  [/^(?:is\s+a\s+kind\s+of)\s+(.+)$/i, "is_a"],
+  [/^(?:is\s+made\s+from|made\s+from|crafted\s+from)\s+(.+)$/i, "crafted_from"],
+  [/^(?:is\s+crafted\s+from)\s+(.+)$/i, "crafted_from"],
+  [/^(?:drops?|drop)\s+(.+)$/i, "drops"],
+  [/^(?:is\s+a\s+variant\s+of|variant\s+of)\s+(.+)$/i, "variant_of"]
+];
+
+function normalizeTarget(text){
+  return text.trim().replace(/^(?:a|an|the)\s+/i,"").replace(/[.!?]+$/,"").trim();
+}
+function canonicalRelation(text){
+  const raw=text.trim();
+  for(const [re,type] of relationPatterns){
+    const m=raw.match(re);
+    if(m) return {type,target:normalizeTarget(m[1])};
+  }
+  return null;
+}
+function findNodeByLabel(text){
+  const q=normalizeTarget(text).toLowerCase();
+  return nodes.find(n=>n.label.toLowerCase()===q) ||
+         nodes.find(n=>n.label.toLowerCase().replace(/\s+/g," ")===q);
+}
+function addRelationshipFromText(text){
+  const parsed=canonicalRelation(text);
+  if(!parsed) return {ok:false,message:"Try phrases like “is a block”, “drops leather”, or “crafted from iron ingot”."};
+  const target=findNodeByLabel(parsed.target);
+  if(!target) return {ok:false,message:`I couldn't find “${parsed.target}” in the ontology.`};
+  const exists=edges.some(e=>e[0]===selected&&e[1]===target.id&&e[2]===parsed.type);
+  if(!exists) edges.push([selected,target.id,parsed.type]);
+  updateCounts();
+  return {ok:true,message:`Added ${parsed.type.toUpperCase()} → ${target.label}.`};
+}
+
+function childrenOf(id){return nodes.filter(n=>n.parent===id)}
+function renderTree(){
+ const root=nodes.find(n=>n.id==="object");
+ const el=document.getElementById("tree");
+ if(!root){ el.innerHTML="<div class='empty'>No root node found.</div>"; return; }
+ el.innerHTML=treeNode(root,0);
+}
+function treeNode(n,depth){
+ const kids=childrenOf(n.id), isCol=collapsed.has(n.id);
+ let html=`<div class="tree-item ${isCol?'collapsed':''}">
+   <div class="tree-row ${selected===n.id?'selected':''}" data-id="${n.id}">
+     <span class="caret">${kids.length?(isCol?'▶':'▼'):''}</span><span class="type-icon">${n.icon}</span><span>${n.label}</span>
+   </div>`;
+ if(selected === n.id){
+   html+=`<div class="tree-add-box">
+     <input type="text" id="newTreeNodeInput" placeholder="New item name..." autofocus>
+     <button id="commitTreeAdd">＋ Add</button>
+   </div>`;
+ }
+ if(kids.length) html+=`<div class="children">${kids.map(k=>treeNode(k,depth+1)).join("")}</div>`;
+ return html+"</div>";
+}
+
+document.getElementById("tree").addEventListener("click",e=>{
+ const commitBtn = e.target.closest("#commitTreeAdd");
+ if(commitBtn){
+   const input = document.getElementById("newTreeNodeInput");
+   const val = input ? input.value.trim() : "";
+   if(val){
+     const newId = val.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+     if(!nodeMap[newId]){
+       const newNode = {
+         id: newId,
+         label: val,
+         kind: "Entity",
+         icon: "◆",
+         color: "#1f6feb",
+         parent: selected,
+         props: { description: `User-added entity: ${val}` }
+       };
+       nodes.push(newNode);
+       nodeMap[newId] = newNode;
+       edges.push([newId, selected, "is_a"]);
+       
+       const wrap = document.getElementById("graph");
+       const W = wrap.clientWidth || 800, H = wrap.clientHeight || 600;
+       const parentPos = nodePositions[selected] || [W/2, H/2];
+       nodePositions[newId] = [parentPos[0] + (Math.random() * 60 - 30), parentPos[1] + 60];
+       
+       updateCounts();
+       select(newId);
+     }
+   }
+   return;
+ }
+
+ const row=e.target.closest(".tree-row"); if(!row)return;
+ const id=row.dataset.id, kids=childrenOf(id);
+ if(kids.length && e.target.closest(".caret")) collapsed.has(id)?collapsed.delete(id):collapsed.add(id);
+ select(id); renderTree();
+});
+
+document.getElementById("tree").addEventListener("keydown", e => {
+  if(e.key === "Enter" && e.target.id === "newTreeNodeInput"){
+    document.getElementById("commitTreeAdd")?.click();
+  }
+});
+
+function visibleNodes(){
+ if(!query)return nodes;
+ const q=query.toLowerCase();
+ const keep=new Set(nodes.filter(n=>(n.label+" "+n.kind+" "+JSON.stringify(n.props)).toLowerCase().includes(q)).map(n=>n.id));
+ nodes.forEach(n=>{if(keep.has(n.id)&&n.parent)keep.add(n.parent)});
+ edges.forEach(([a,b])=>{if(keep.has(a)||keep.has(b)){keep.add(a);keep.add(b)}});
+ return nodes.filter(n=>keep.has(n.id));
+}
+
+function renderGraph(){
+ const wrap=document.getElementById("graph"), W=wrap.clientWidth||800,H=wrap.clientHeight||600;
+ const vis=visibleNodes(), ids=new Set(vis.map(n=>n.id));
+ const shownEdges=edges.filter(([a,b,t])=>ids.has(a)&&ids.has(b)&&(filter==="all"||t===filter));
+
+ const edgeSvg=shownEdges.map(([a,b,t])=>{
+   const [x1,y1]=nodePositions[a]||[W/2,H/2],[x2,y2]=nodePositions[b]||[W/2,H/2], hi=selected===a||selected===b;
+   return `<g><line class="edge ${hi?'highlight':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#arrow)"/>
+   <text class="edge-label" x="${(x1+x2)/2}" y="${(y1+y2)/2-5}">${t.toUpperCase()}</text></g>`;
+ }).join("");
+
+ const nodeSvg=vis.map(n=>{
+   const [x,y]=nodePositions[n.id]||[W/2,H/2], dim=selected && selected!==n.id && !shownEdges.some(e=>(e[0]===selected&&e[1]===n.id)||(e[1]===selected&&e[0]===n.id));
+   return `<g class="node ${n.id===selected?'selected':''} ${dim?'dim':''}" data-id="${n.id}">
+     <circle cx="${x}" cy="${y}" r="${n.kind==='Type'?29:25}" fill="${n.color}"/>
+     <text x="${x}" y="${y+4}">${n.icon}</text>
+     <text x="${x}" y="${y+47}">${n.label}</text>
+   </g>`;
+ }).join("");
+
+ wrap.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+   <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#596777"/></marker></defs>
+   ${edgeSvg}${nodeSvg}</svg>`;
+ wrap.querySelectorAll(".node").forEach(g=>g.addEventListener("click",()=>select(g.dataset.id)));
+}
+
+function select(id){
+ selected=id; const n=nodeMap[id]; 
+ if(n) {
+   renderInspector(n); 
+   document.getElementById("status").textContent=`Selected: ${n.label}`;
+ } else {
+   document.getElementById("inspector").innerHTML=`<div class="empty">Click an entity in the tree or graph.</div>`;
+   document.getElementById("status").textContent=`Select a node to inspect it.`;
+ }
+ renderGraph(); 
+ renderTree();
+}
+function related(n){
+ return edges.filter(e=>e[0]===n.id||e[1]===n.id).map(([a,b,t])=>{
+   const other=nodeMap[a===n.id?b:a]; return {other,t,direction:a===n.id?"→":"←"};
+ });
+}
+function renderInspector(n){
+ if(!n) return;
+ const rels=related(n);
+ const allRels = rels.map(r => `
+        <div class="rel" data-id="${r.other.id}"><span>${r.direction} ${r.other.label}</span>
+        <span class="rtype">${r.t.toUpperCase()}</span></div>
+      `
+   ).join("");
+ const subRels = rels.length ? allRels : `<div class='empty' style="padding:10px 0">No relationships yet.</div>`
+ document.getElementById("inspector").innerHTML=`
+  <div class="entity-title">${n.icon} ${n.label}</div>
+  <div class="entity-kind">${n.kind}</div>
+  ${Object.entries(n.props||{}).filter(([k])=>k!=="wiki").map(([k,v])=>`<div class="prop"><b>${k}</b><span>${v}</span></div>`).join("")}
+  <h3>Relationships</h3>
+  ${subRels}
+  <button class="add-rel" id="addRel">＋ Add relationship</button>
+  ${editorOpen?`<div class="rel-editor">
+    <input id="relInput" placeholder='e.g. “is a block” or “drops leather”' autofocus>
+    <div class="editor-actions"><button class="primary" id="commitRel">Add</button><button id="cancelRel">Cancel</button></div>
+    <div class="parse-help">Natural language is mapped to ontology predicates such as IS_A, DROPS, CRAFTED_FROM, and VARIANT_OF.</div>
+    <div id="parseMessage"></div>
+  </div>`:""}
+  ${n.props?.wiki?`<a class="source" href="${n.props.wiki}" target="_blank" rel="noopener">View Minecraft Wiki ↗</a>`:""}
+ `;
+ document.querySelectorAll(".rel").forEach(x=>x.onclick=()=>select(x.dataset.id));
+ document.getElementById("addRel")?.addEventListener("click",()=>{editorOpen=true;renderInspector(n);setTimeout(()=>document.getElementById("relInput")?.focus(),0)});
+ document.getElementById("cancelRel")?.addEventListener("click",()=>{editorOpen=false;renderInspector(n)});
+ document.getElementById("commitRel")?.addEventListener("click",()=>{
+   const input=document.getElementById("relInput"), msg=document.getElementById("parseMessage");
+   const result=addRelationshipFromText(input.value);
+   msg.textContent=result.message; msg.style.cssText=`margin-top:7px;font-size:11px;color:${result.ok?'var(--green)':'var(--red)'}`;
+   if(result.ok){ editorOpen=false; renderInspector(n); renderGraph(); }
+ });
+ document.getElementById("relInput")?.addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("commitRel").click();if(e.key==="Escape")document.getElementById("cancelRel").click()});
+}
+
+function updateCounts(){
+  document.getElementById("counts").textContent = `${nodes.length} nodes · ${edges.length} relationships`;
+}
+
+document.getElementById("search").addEventListener("input",e=>{query=e.target.value.trim();renderGraph();});
+document.querySelectorAll(".filter").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+ filter=b.dataset.filter;renderGraph();
+});
+document.getElementById("reset").onclick=()=>{
+  editorOpen=false;query="";document.getElementById("search").value="";filter="all";
+  document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x.dataset.filter==="all"));
+  if(nodes.length > 0) select(nodes[0].id);
+};
+
+document.getElementById("saveBtn").onclick = () => {
+  const data = { nodes, edges, nodePositions };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ontology.json";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+document.getElementById("loadBtn").onclick = () => {
+  document.getElementById("loadFileInput").click();
+};
+
+document.getElementById("loadFileInput").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      loadOntologyData(data);
+      document.getElementById("status").textContent = "Ontology loaded successfully.";
+    } catch (err) {
+      alert("Error parsing JSON file.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+};
+
+function loadOntologyData(data){
+  if (data.nodes && data.edges) {
+    nodes = data.nodes;
+    edges = data.edges;
+    nodePositions = data.nodePositions || {};
+    nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+    
+    // Ensure default layout positions for any new nodes missing them
+    const wrap = document.getElementById("graph");
+    const W = wrap.clientWidth || 800, H = wrap.clientHeight || 600;
+    nodes.forEach(n => {
+      if(!nodePositions[n.id]) nodePositions[n.id] = [W/2 + (Math.random()*100-50), H/2 + (Math.random()*100-50)];
+    });
+
+    collapsed.clear();
+    editorOpen = false;
+    updateCounts();
+    renderTree();
+    if (nodes.length > 0) {
+      select(nodes[0].id);
+    }
+  }
+}
+
+function initBaseOntology(){
+  nodes = [
+    {id:"object",label:"Object",kind:"Type",icon:"◈",color:"#238636",props:{description:"Root concept for the miniature ontology."}},
+    {id:"block",label:"Block",kind:"Type",icon:"▦",color:"#238636",parent:"object",props:{description:"A placeable world block."}},
+    {id:"entity",label:"Entity",kind:"Type",icon:"♟",color:"#238636",parent:"object",props:{description:"A dynamic object represented in the world."}},
+    {id:"item",label:"Item",kind:"Type",icon:"◇",color:"#238636",parent:"object",props:{description:"An inventory object that can be held or used."}}
+  ];
+  edges = [
+    ["block","object","is_a"],
+    ["entity","object","is_a"],
+    ["item","object","is_a"]
+  ];
+  nodeMap = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const wrap = document.getElementById("graph");
+  const W = wrap.clientWidth || 800, H = wrap.clientHeight || 600;
+  nodePositions = {
+    object: [W/2, H/2 - 100],
+    block: [W/2 - 180, H/2 + 50],
+    entity: [W/2, H/2 + 50],
+    item: [W/2 + 180, H/2 + 50]
+  };
+  updateCounts();
+  renderTree();
+  select("object");
+}
+
+document.getElementById("fit").onclick = () => {
+  const wrap = document.getElementById("graph");
+  const W = wrap.clientWidth || 800;
+  const H = wrap.clientHeight || 600;
+  const vis = visibleNodes();
+  const visIds = new Set(vis.map(n => n.id));
+
+  const activeEdges = edges.filter(([a, b, t]) => visIds.has(a) && visIds.has(b) && (filter === "all" || t === filter));
+  const activeNodeIds = new Set();
+  activeEdges.forEach(([a, b]) => { activeNodeIds.add(a); activeNodeIds.add(b); });
+
+  const simNodes = vis.filter(n => activeNodeIds.has(n.id)).map(n => ({
+    id: n.id,
+    x: nodePositions[n.id] ? nodePositions[n.id][0] : W / 2,
+    y: nodePositions[n.id] ? nodePositions[n.id][1] : H / 2
+  }));
+
+  if (simNodes.length > 0) {
+    const simLinks = activeEdges.map(([source, target]) => ({ source, target }));
+
+    const simulation = d3.forceSimulation(simNodes)
+      .force("link", d3.forceLink(simLinks).id(d => d.id).distance(90))
+      .force("charge", d3.forceManyBody().strength(-280))
+      .force("center", d3.forceCenter(W / 2, H / 2))
+      .force("collision", d3.forceCollide().radius(40))
+      .stop();
+
+    for (let i = 0; i < 120; ++i) simulation.tick();
+
+    simNodes.forEach(node => {
+      nodePositions[node.id] = [node.x, node.y];
+    });
+  }
+
+  renderGraph();
+
+  const svg = wrap.querySelector("svg");
+  if (!svg) return;
+  const circles = [...svg.querySelectorAll(".node circle")];
+  if (!circles.length) return;
+  const xs = circles.map(c => +c.getAttribute("cx")), ys = circles.map(c => +c.getAttribute("cy"));
+  const minX = Math.min(...xs) - 80, maxX = Math.max(...xs) + 80, minY = Math.min(...ys) - 80, maxY = Math.max(...ys) + 80;
+  svg.setAttribute("viewBox", `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+};
+
+window.addEventListener("resize", renderGraph);
+
+// Attempt to fetch ontology.json on startup, fallback to base ontology on failure
+fetch("ontology.json")
+  .then(response => {
+    if (!response.ok) throw new Error("Failed to load ontology.json");
+    return response.json();
+  })
+  .then(data => {
+    loadOntologyData(data);
+    document.getElementById("status").textContent = "Loaded ontology.json successfully.";
+  })
+  .catch(err => {
+    initBaseOntology();
+    document.getElementById("status").textContent = "Started with base ontology (ontology.json not found).";
+  });
+</script>
+</body>
+</html>

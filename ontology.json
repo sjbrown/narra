@@ -1,0 +1,313 @@
+{
+  "nodes": [
+    {
+      "id": "object",
+      "label": "Object",
+      "kind": "Type",
+      "icon": "◈",
+      "color": "#238636",
+      "props": {
+        "description": "Root concept for the miniature ontology."
+      }
+    },
+    {
+      "id": "block",
+      "label": "Block",
+      "kind": "Type",
+      "icon": "▦",
+      "color": "#238636",
+      "parent": "object",
+      "props": {
+        "description": "A placeable world block."
+      }
+    },
+    {
+      "id": "item",
+      "label": "Item",
+      "kind": "Type",
+      "icon": "◇",
+      "color": "#238636",
+      "parent": "object",
+      "props": {
+        "description": "An inventory object that can be held or used."
+      }
+    },
+    {
+      "id": "entity",
+      "label": "Entity",
+      "kind": "Type",
+      "icon": "♟",
+      "color": "#238636",
+      "parent": "object",
+      "props": {
+        "description": "A dynamic object represented in the world."
+      }
+    },
+    {
+      "id": "grass_block",
+      "label": "Grass Block",
+      "kind": "Block",
+      "icon": "▦",
+      "color": "#1f6feb",
+      "parent": "block",
+      "props": {
+        "identifier": "grass_block",
+        "description": "A block with grass on top.",
+        "wiki": "https://minecraft.wiki/w/Grass_Block"
+      }
+    },
+    {
+      "id": "stone",
+      "label": "Stone",
+      "kind": "Block",
+      "icon": "▦",
+      "color": "#1f6feb",
+      "parent": "block",
+      "props": {
+        "identifier": "stone",
+        "description": "A common stone block."
+      }
+    },
+    {
+      "id": "pickaxe",
+      "label": "Pickaxe",
+      "kind": "Type",
+      "icon": "⛏",
+      "color": "#238636",
+      "parent": "item",
+      "props": {
+        "description": "A tool type used for mining."
+      }
+    },
+    {
+      "id": "iron_pickaxe",
+      "label": "Iron Pickaxe",
+      "kind": "Item",
+      "icon": "⛏",
+      "color": "#1f6feb",
+      "parent": "item",
+      "props": {
+        "identifier": "iron_pickaxe",
+        "description": "An iron variant of the pickaxe.",
+        "wiki": "https://minecraft.wiki/w/Iron_Pickaxe"
+      }
+    },
+    {
+      "id": "stick",
+      "label": "Stick",
+      "kind": "Item",
+      "icon": "╱",
+      "color": "#1f6feb",
+      "parent": "item",
+      "props": {
+        "identifier": "stick",
+        "description": "A crafting component."
+      }
+    },
+    {
+      "id": "iron_ingot",
+      "label": "Iron Ingot",
+      "kind": "Material",
+      "icon": "◆",
+      "color": "#d29922",
+      "parent": "item",
+      "props": {
+        "identifier": "iron_ingot",
+        "description": "A material used in crafting."
+      }
+    },
+    {
+      "id": "animal",
+      "label": "Animal",
+      "kind": "Type",
+      "icon": "♟",
+      "color": "#238636",
+      "parent": "entity",
+      "props": {
+        "description": "A broad passive-mob category."
+      }
+    },
+    {
+      "id": "cow",
+      "label": "Cow",
+      "kind": "Entity",
+      "icon": "♟",
+      "color": "#1f6feb",
+      "parent": "entity",
+      "props": {
+        "identifier": "cow",
+        "description": "A passive mob that drops leather and beef and can be milked.",
+        "wiki": "https://minecraft.wiki/w/Cow"
+      }
+    },
+    {
+      "id": "leather",
+      "label": "Leather",
+      "kind": "Item",
+      "icon": "◇",
+      "color": "#d29922",
+      "parent": "item",
+      "props": {
+        "identifier": "leather",
+        "description": "An item dropped by cows."
+      }
+    },
+    {
+      "id": "beef",
+      "label": "Beef",
+      "kind": "Item",
+      "icon": "◇",
+      "color": "#d29922",
+      "parent": "item",
+      "props": {
+        "identifier": "beef",
+        "description": "Food dropped by cows."
+      }
+    }
+  ],
+  "edges": [
+    [
+      "block",
+      "object",
+      "is_a"
+    ],
+    [
+      "item",
+      "object",
+      "is_a"
+    ],
+    [
+      "entity",
+      "object",
+      "is_a"
+    ],
+    [
+      "pickaxe",
+      "item",
+      "is_a"
+    ],
+    [
+      "animal",
+      "entity",
+      "is_a"
+    ],
+    [
+      "cow",
+      "animal",
+      "is_a"
+    ],
+    [
+      "iron_pickaxe",
+      "pickaxe",
+      "is_a"
+    ],
+    [
+      "cow",
+      "leather",
+      "drops"
+    ],
+    [
+      "cow",
+      "beef",
+      "drops"
+    ],
+    [
+      "iron_pickaxe",
+      "iron_ingot",
+      "crafted_from"
+    ],
+    [
+      "iron_pickaxe",
+      "stick",
+      "crafted_from"
+    ],
+    [
+      "iron_ingot",
+      "item",
+      "is_a"
+    ],
+    [
+      "stick",
+      "item",
+      "is_a"
+    ],
+    [
+      "grass_block",
+      "block",
+      "is_a"
+    ],
+    [
+      "stone",
+      "block",
+      "is_a"
+    ],
+    [
+      "beef",
+      "item",
+      "is_a"
+    ],
+    [
+      "leather",
+      "item",
+      "is_a"
+    ]
+  ],
+  "nodePositions": {
+    "object": [
+      711.7781249196738,
+      343.20423831727663
+    ],
+    "block": [
+      705.0367031590778,
+      198.55862446486051
+    ],
+    "item": [
+      585.9355007626748,
+      444.8763970543842
+    ],
+    "entity": [
+      854.338471523203,
+      361.8193852596592
+    ],
+    "grass_block": [
+      745.5925410834243,
+      104.10688511021958
+    ],
+    "stone": [
+      646.3695151258743,
+      113.70875582512254
+    ],
+    "pickaxe": [
+      476.5166473002809,
+      521.0768051058279
+    ],
+    "iron_pickaxe": [
+      405.4187091330501,
+      601.0405254886052
+    ],
+    "stick": [
+      491.5167862394167,
+      409.49893826616903
+    ],
+    "iron_ingot": [
+      553.4797760625507,
+      542.5026564730581
+    ],
+    "animal": [
+      983.4441169430431,
+      389.1955881823511
+    ],
+    "cow": [
+      1080.936838505815,
+      422.83480278192997
+    ],
+    "leather": [
+      681.0810577709408,
+      474.50383746625613
+    ],
+    "beef": [
+      633.3464877750705,
+      538.7020484561749
+    ]
+  }
+}
